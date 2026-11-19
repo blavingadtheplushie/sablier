@@ -8,7 +8,7 @@ LDFLAGS := -s -w \
 	-X $(PKG)/internal/version.Commit=$(COMMIT) \
 	-X $(PKG)/internal/version.Date=$(DATE)
 
-.PHONY: all build run install test lint docs generate tidy clean server db
+.PHONY: all build run install test test-server lint docs generate tidy clean server db
 
 all: build
 
@@ -22,6 +22,11 @@ db:
 
 server: db
 	go run ./cmd/$(BINARY)-server
+
+# server tests against a throwaway sablier_test database
+test-server: db
+	-docker exec sablier_db createdb -U sablier sablier_test 2>/dev/null
+	SABLIER_TEST_DATABASE_URL=postgres://sablier:sablier@localhost:5433/sablier_test?sslmode=disable go test -count=1 ./internal/server/...
 
 run:
 	go run ./cmd/$(BINARY) $(ARGS)

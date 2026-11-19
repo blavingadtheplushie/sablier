@@ -3,10 +3,12 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
 
+	"github.com/espcaa/sablier/internal/server/db"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -16,14 +18,14 @@ type pinger interface {
 	Ping(ctx context.Context) error
 }
 
-func Handler(db pinger) http.Handler {
+func Handler(pool pinger) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID, middleware.RealIP, middleware.Logger, middleware.Recoverer)
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 		defer cancel()
-		if err := db.Ping(ctx); err != nil {
+		if err := pool.Ping(ctx); err != nil {
 			http.Error(w, "db unreachable", http.StatusServiceUnavailable)
 			return
 		}
@@ -42,6 +44,9 @@ func Run(ctx context.Context, c Config) error {
 	defer pool.Close()
 	if err := pool.Ping(ctx); err != nil {
 		return err
+	}
+	if err := db.Migrate(ctx, pool); err != nil {
+		return fmt.Errorf("migrate: %w", err)
 	}
 
 	srv := &http.Server{Addr: c.Addr, Handler: Handler(pool), ReadHeaderTimeout: 10 * time.Second}

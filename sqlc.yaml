@@ -8,3 +8,12 @@ sql:
       go:
         package: "sqlc"
         out: "internal/store/sqlc"
+  # server db
+  - engine: "postgresql"
+    schema: "internal/server/db/migrations"
+    queries: "internal/server/db/queries.sql"
+    gen:
+      go:
+        package: "sqlc"
+        out: "internal/server/db/sqlc"
+        sql_package: "pgx/v5"
