@@ -74,10 +74,15 @@ func projectName(id string, names map[string]string) string {
 		}
 		return "(unknown " + id[:min(8, len(id))] + ")"
 	}
-	if home, err := os.UserHomeDir(); err == nil && strings.HasPrefix(root, home) {
-		return "~" + strings.TrimPrefix(root, home)
+	return tilde(root)
+}
+
+// shortens paths under the home dir to ~/...
+func tilde(p string) string {
+	if home, err := os.UserHomeDir(); err == nil && strings.HasPrefix(p, home) {
+		return "~" + strings.TrimPrefix(p, home)
 	}
-	return root
+	return p
 }
 
 // minutes, like 0m, 27m, 1h05m

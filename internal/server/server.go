@@ -39,6 +39,11 @@ func New(cfg Config, pool pinger, q *sqlc.Queries, auth *hcauth.Client) http.Han
 	r.Get("/auth/login", s.login)
 	r.Get("/auth/callback", s.callback)
 	r.Post("/auth/logout", s.logout)
+
+	r.Route("/v1", func(r chi.Router) {
+		r.Use(s.requireKey)
+		r.Get("/me", s.me)
+	})
 	return r
 }
 

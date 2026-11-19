@@ -29,6 +29,7 @@ func NewRootCmd() *cobra.Command {
 		newHookCmd(),
 		newClaudeCmd(),
 		newTodayCmd(),
+		newLoginCmd(),
 	)
 
 	return root
