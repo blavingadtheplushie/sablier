@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/creack/pty"
 )
@@ -26,7 +27,10 @@ func runPipeTicks(t *testing.T, script, input string) (int, string, []Tick) {
 	defer ptmx.Close()
 	var out bytes.Buffer
 	var ticks []Tick
-	code, err := pipe(c, ptmx, strings.NewReader(input), &out, func(tk Tick) { ticks = append(ticks, tk) })
+	code, err := pipe(c, ptmx, strings.NewReader(input), &out, Options{
+		OnTick:  func(tk Tick) { ticks = append(ticks, tk) },
+		OnFocus: func(bool, time.Time) {},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}

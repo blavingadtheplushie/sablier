@@ -53,3 +53,32 @@ func TestTicker(t *testing.T) {
 		t.Fatalf("got ticks %v, want [1 1] (empty windows skipped)", got)
 	}
 }
+
+func TestFocusWatcher(t *testing.T) {
+	var got []bool
+	f := focusWatcher{onFocus: func(in bool, _ time.Time) { got = append(got, in) }}
+	for _, chunk := range []string{"\x1b[I", "a", "\x1b[I", "\x1b[O", "\x1b[O", "\x1b[O\x1b[I"} {
+		f.observe([]byte(chunk))
+	}
+	// in, (key), repeat in skipped, out, repeat out skipped, out then in in one chunk ends in
+	if len(got) != 3 || !got[0] || got[1] || !got[2] {
+		t.Fatalf("got %v, want [true false true]", got)
+	}
+}
+
+func TestCounterIgnoresMouse(t *testing.T) {
+	var c counter
+	c.observe([]byte("\x1b[<64;30;12M"))                // wheel up, sgr
+	c.observe([]byte("\x1b[<65;30;12M\x1b[<65;30;13M")) // fast scroll, two in one chunk
+	c.observe([]byte("\x1b[<0;10;5M\x1b[<0;10;5m"))     // click press + release
+	c.observe([]byte("\x1b[M`!!"))                      // wheel up, x10
+	c.observe([]byte("\x1b[O\x1b[<64;1;1M"))            // focus + scroll together
+	if keys, _ := c.take(); keys != 0 {
+		t.Fatalf("mouse counted as %d keys", keys)
+	}
+
+	c.observe([]byte("a\x1b[<64;30;12M")) // typing mixed in still counts
+	if keys, _ := c.take(); keys != 1 {
+		t.Fatalf("got %d keys, want 1", keys)
+	}
+}

@@ -3,6 +3,7 @@ package launcher
 import (
 	"bytes"
 	"io"
+	"regexp"
 	"sync"
 	"time"
 )
@@ -33,7 +34,7 @@ func (c *counter) observe(chunk []byte) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if bytes.Equal(chunk, focusIn) || bytes.Equal(chunk, focusOut) {
+	if !c.inPaste && len(withoutNoise(chunk)) == 0 {
 		return
 	}
 	if bytes.Contains(chunk, pasteStart) {
@@ -49,6 +50,16 @@ func (c *counter) observe(chunk []byte) {
 	}
 }
 
+// mouse reports: sgr (esc [ < b ; x ; y M/m) and x10 (esc [ M + 3 bytes)
+var mouseSeq = regexp.MustCompile(`\x1b\[<\d+;\d+;\d+[Mm]|\x1b\[M[\x00-\xff]{3}`)
+
+// drops what the terminal sends on its own: focus changes and mouse/scroll reports
+func withoutNoise(chunk []byte) []byte {
+	chunk = mouseSeq.ReplaceAll(chunk, nil)
+	chunk = bytes.ReplaceAll(chunk, focusIn, nil)
+	return bytes.ReplaceAll(chunk, focusOut, nil)
+}
+
 func (c *counter) take() (int, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -57,15 +68,36 @@ func (c *counter) take() (int, bool) {
 	return keys, pasted
 }
 
+// terminal focus, from the sequences the terminal sends once the harness enables focus reporting
+type focusWatcher struct {
+	known, in bool
+	onFocus   func(in bool, at time.Time)
+}
+
+func (f *focusWatcher) observe(chunk []byte) {
+	i, o := bytes.LastIndex(chunk, focusIn), bytes.LastIndex(chunk, focusOut)
+	if i < 0 && o < 0 {
+		return
+	}
+	in := i > o
+	if f.known && f.in == in {
+		return // only changes
+	}
+	f.known, f.in = true, in
+	f.onFocus(in, time.Now())
+}
+
 type countingReader struct {
 	r io.Reader
 	c *counter
+	f *focusWatcher
 }
 
 func (r countingReader) Read(p []byte) (int, error) {
 	n, err := r.r.Read(p)
 	if n > 0 {
 		r.c.observe(p[:n])
+		r.f.observe(p[:n])
 	}
 	return n, err
 }

@@ -12,16 +12,17 @@ import (
 	"github.com/espcaa/sablier/internal/store"
 )
 
-func TestTickRecorder(t *testing.T) {
+func TestRecorder(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("SABLIER_HOME", home)
 	ctx := context.Background()
 	now := time.Now()
 
 	var warn bytes.Buffer
-	onTick, closeRec := tickRecorder(ctx, "r1", &warn)
-	onTick(launcher.Tick{At: now, Window: 10 * time.Second, Keys: 7, Pasted: true})
-	closeRec()
+	rec := newRecorder(ctx, "r1", &warn)
+	rec.tick(launcher.Tick{At: now, Window: 10 * time.Second, Keys: 7, Pasted: true})
+	rec.focus(false, now.Add(time.Second))
+	rec.close()
 	if warn.Len() != 0 {
 		t.Fatalf("unexpected warning: %s", warn.String())
 	}
@@ -32,7 +33,7 @@ func TestTickRecorder(t *testing.T) {
 	}
 	defer s.Close()
 	events, err := s.Between(ctx, now.Add(-time.Minute), now.Add(time.Minute))
-	if err != nil || len(events) != 1 {
+	if err != nil || len(events) != 2 {
 		t.Fatalf("got %d events, %v", len(events), err)
 	}
 	e := events[0]
@@ -43,6 +44,11 @@ func TestTickRecorder(t *testing.T) {
 	if d := p.(*event.InputTickData); d.Keys != 7 || !d.Pasted || d.WindowMs != 10000 {
 		t.Fatalf("bad payload: %+v", d)
 	}
+	f := events[1]
+	if fp, _ := f.Payload(); f.Kind != event.Focus || fp.(*event.FocusData).In || f.SessionID != "run:r1" {
+		t.Fatalf("bad focus event: %+v", f)
+	}
+
 	names, _ := s.Projects(ctx)
 	if names[e.ProjectID] == "" {
 		t.Fatal("project name not recorded")

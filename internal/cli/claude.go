@@ -6,6 +6,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
+	"time"
 
 	"github.com/espcaa/sablier/internal/event"
 	"github.com/espcaa/sablier/internal/harness/claude"
@@ -26,10 +28,10 @@ func newClaudeCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			onTick, closeRec := tickRecorder(context.Background(), id, cmd.ErrOrStderr())
+			rec := newRecorder(context.Background(), id, cmd.ErrOrStderr())
 
-			code, err := launcher.Run("claude", args, launcher.Options{RunID: id, OnTick: onTick})
-			closeRec()
+			code, err := launcher.Run("claude", args, launcher.Options{RunID: id, OnTick: rec.tick, OnFocus: rec.focus})
+			rec.close()
 			if err != nil {
 				return err
 			}
@@ -41,54 +43,84 @@ func newClaudeCmd() *cobra.Command {
 	}
 }
 
-// saves input ticks as events
-func tickRecorder(ctx context.Context, runID string, warn io.Writer) (func(launcher.Tick), func()) {
-	noop := func(launcher.Tick) {}
+// saves launcher input as events. called from several goroutines
+type recorder struct {
+	ctx     context.Context
+	s       *store.Store // nil when tracking is off
+	runID   string
+	project string
+	warn    io.Writer
+
+	mu      sync.Mutex
+	failed  int
+	lastErr error
+}
+
+func newRecorder(ctx context.Context, runID string, warn io.Writer) *recorder {
+	r := &recorder{ctx: ctx, runID: runID, warn: warn}
 
 	dir, err := paths.DataDir()
 	if err != nil {
 		fmt.Fprintln(warn, "sablier: not tracking input:", err)
-		return noop, func() {}
+		return r
 	}
-	s, err := store.Open(filepath.Join(dir, "sablier.db"))
+	r.s, err = store.Open(filepath.Join(dir, "sablier.db"))
 	if err != nil {
 		fmt.Fprintln(warn, "sablier: not tracking input:", err)
-		return noop, func() {}
+		return r
 	}
 
-	var pid string
-	if salt, err := s.Salt(ctx); err == nil {
+	if salt, err := r.s.Salt(ctx); err == nil {
 		if cwd, err := os.Getwd(); err == nil {
-			pid = project.ID(salt, cwd)
-			s.Update(ctx, func(tx *store.Tx) error { return tx.PutProject(ctx, pid, project.Root(cwd)) })
+			r.project = project.ID(salt, cwd)
+			r.s.Update(ctx, func(tx *store.Tx) error { return tx.PutProject(ctx, r.project, project.Root(cwd)) })
 		}
 	}
+	return r
+}
 
-	var failed int
-	var lastErr error
-	onTick := func(tk launcher.Tick) {
-		e, err := event.New(event.InputTick, tk.At, event.InputTickData{
-			WindowMs: tk.Window.Milliseconds(),
-			Keys:     tk.Keys,
-			Pasted:   tk.Pasted,
-		})
-		if err == nil {
-			e.SessionID = "run:" + runID // linked to claude's session later
-			e.ProjectID = pid
-			e.Harness = claude.Harness
-			e.Source = event.SourceLauncher
-			_, err = s.Append(ctx, e)
-		}
-		if err != nil {
-			failed++
-			lastErr = err
-		}
+func (r *recorder) tick(tk launcher.Tick) {
+	r.save(event.InputTick, tk.At, event.InputTickData{
+		WindowMs: tk.Window.Milliseconds(),
+		Keys:     tk.Keys,
+		Pasted:   tk.Pasted,
+	})
+}
+
+func (r *recorder) focus(in bool, at time.Time) {
+	r.save(event.Focus, at, event.FocusData{In: in})
+}
+
+func (r *recorder) save(kind event.Kind, at time.Time, data any) {
+	if r.s == nil {
+		return
 	}
-	closeRec := func() {
-		if failed > 0 {
-			fmt.Fprintf(warn, "sablier: %d input ticks not saved: %v\n", failed, lastErr)
-		}
-		s.Close()
+	e, err := event.New(kind, at, data)
+	if err == nil {
+		e.SessionID = "run:" + r.runID // linked to claude's session later
+		e.ProjectID = r.project
+		e.Harness = claude.Harness
+		e.Source = event.SourceLauncher
+		_, err = r.s.Append(r.ctx, e)
 	}
-	return onTick, closeRec
+	if err != nil {
+		r.mu.Lock()
+		r.failed++
+		r.lastErr = err
+		r.mu.Unlock()
+	}
+}
+
+// reports problems only now, printing mid-session would garble the terminal
+func (r *recorder) close() {
+	if r.s == nil {
+		return
+	}
+	r.mu.Lock()
+	failed, lastErr := r.failed, r.lastErr
+	r.mu.Unlock()
+	if failed > 0 {
+		fmt.Fprintf(r.warn, "sablier: %d events not saved: %v\n", failed, lastErr)
+	}
+	r.s.Close()
 }

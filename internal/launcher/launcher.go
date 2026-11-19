@@ -14,8 +14,9 @@ import (
 )
 
 type Options struct {
-	RunID  string
-	OnTick func(Tick) // input activity
+	RunID   string
+	OnTick  func(Tick) // input activity
+	OnFocus func(in bool, at time.Time)
 }
 
 const tickEvery = 10 * time.Second
@@ -28,6 +29,9 @@ func Run(name string, args []string, o Options) (int, error) {
 	}
 	if o.OnTick == nil {
 		o.OnTick = func(Tick) {}
+	}
+	if o.OnFocus == nil {
+		o.OnFocus = func(bool, time.Time) {}
 	}
 
 	c := exec.Command(path, args...)
