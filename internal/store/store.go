@@ -15,7 +15,8 @@ import (
 
 	"github.com/espcaa/sablier/internal/event"
 	"github.com/espcaa/sablier/internal/store/sqlc"
-	_ "modernc.org/sqlite"
+	"modernc.org/sqlite"
+	sqlite3 "modernc.org/sqlite/lib"
 )
 
 //go:embed schema.sql
@@ -31,16 +32,35 @@ func Open(path string) (*Store, error) {
 		return nil, err
 	}
 
-	dsn := "file:" + path + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_txlock=immediate"
+	dsn := "file:" + path + "?_pragma=busy_timeout(5000)&_txlock=immediate"
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, err
+	}
+	if err := useWAL(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("enable wal: %w", err)
 	}
 	if _, err := db.Exec(schema); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("apply schema: %w", err)
 	}
 	return &Store{db: db, q: sqlc.New(db)}, nil
+}
+
+// busy_timeout doesn't cover switching to wal, so racing first opens retry
+func useWAL(db *sql.DB) error {
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		var mode string
+		err := db.QueryRow("PRAGMA journal_mode=WAL").Scan(&mode)
+		var sqliteErr *sqlite.Error
+		busy := errors.As(err, &sqliteErr) && sqliteErr.Code()&0xff == sqlite3.SQLITE_BUSY
+		if !busy || time.Now().After(deadline) {
+			return err
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 }
 
 func (s *Store) Close() error { return s.db.Close() }

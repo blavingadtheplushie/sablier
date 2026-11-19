@@ -195,3 +195,11 @@ func TestProjects(t *testing.T) {
 		t.Fatalf("got %v, %v", got, err)
 	}
 }
+
+func TestWAL(t *testing.T) {
+	s := open(t)
+	var mode string
+	if err := s.db.QueryRow("PRAGMA journal_mode").Scan(&mode); err != nil || mode != "wal" {
+		t.Fatalf("journal_mode = %q, %v", mode, err)
+	}
+}
