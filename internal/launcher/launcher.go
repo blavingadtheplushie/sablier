@@ -8,27 +8,33 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"time"
 
 	"golang.org/x/term"
 )
 
+type Options struct {
+	RunID  string
+	OnTick func(Tick) // input activity
+}
+
+const tickEvery = 10 * time.Second
+
 // runs a harness attached to this terminal with SABLIER_RUN_ID set, returns its exit code
-func Run(name string, args []string) (int, error) {
+func Run(name string, args []string, o Options) (int, error) {
 	path, err := exec.LookPath(name)
 	if err != nil {
 		return 0, fmt.Errorf("%s not found in PATH", name)
 	}
-
-	id, err := newRunID()
-	if err != nil {
-		return 0, err
+	if o.OnTick == nil {
+		o.OnTick = func(Tick) {}
 	}
 
 	c := exec.Command(path, args...)
-	c.Env = append(os.Environ(), "SABLIER_RUN_ID="+id)
+	c.Env = append(os.Environ(), "SABLIER_RUN_ID="+o.RunID)
 
 	if term.IsTerminal(int(os.Stdin.Fd())) && term.IsTerminal(int(os.Stdout.Fd())) {
-		return runTerminal(c)
+		return runTerminal(c, o)
 	}
 	return runDirect(c)
 }
@@ -51,7 +57,7 @@ func exitCode(err error) (int, error) {
 	return 0, err
 }
 
-func newRunID() (string, error) {
+func NewRunID() (string, error) {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
 		return "", err

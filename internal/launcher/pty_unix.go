@@ -14,7 +14,7 @@ import (
 	"golang.org/x/term"
 )
 
-func runTerminal(c *exec.Cmd) (int, error) {
+func runTerminal(c *exec.Cmd, o Options) (int, error) {
 	ptmx, err := pty.Start(c)
 	if err != nil {
 		return 0, err
@@ -39,12 +39,16 @@ func runTerminal(c *exec.Cmd) (int, error) {
 	}
 	defer term.Restore(int(os.Stdin.Fd()), old)
 
-	return pipe(c, ptmx, os.Stdin, os.Stdout)
+	return pipe(c, ptmx, os.Stdin, os.Stdout, o.OnTick)
 }
 
-// copies in -> pty and pty -> out until the harness exits
-func pipe(c *exec.Cmd, ptmx *os.File, in io.Reader, out io.Writer) (int, error) {
-	go io.Copy(ptmx, in)
+// copies in -> pty and pty -> out until the harness exits, counting input on the way
+func pipe(c *exec.Cmd, ptmx *os.File, in io.Reader, out io.Writer, onTick func(Tick)) (int, error) {
+	var keys counter
+	stop, ticked := make(chan struct{}), make(chan struct{})
+	go ticker(&keys, tickEvery, onTick, stop, ticked)
+
+	go io.Copy(ptmx, countingReader{in, &keys})
 
 	done := make(chan struct{})
 	go func() {
@@ -58,5 +62,7 @@ func pipe(c *exec.Cmd, ptmx *os.File, in io.Reader, out io.Writer) (int, error) 
 	case <-done:
 	case <-time.After(500 * time.Millisecond):
 	}
+	close(stop)
+	<-ticked
 	return code, err
 }

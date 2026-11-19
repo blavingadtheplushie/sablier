@@ -12,6 +12,11 @@ import (
 )
 
 func runPipe(t *testing.T, script, input string) (int, string) {
+	code, out, _ := runPipeTicks(t, script, input)
+	return code, out
+}
+
+func runPipeTicks(t *testing.T, script, input string) (int, string, []Tick) {
 	t.Helper()
 	c := exec.Command("sh", "-c", script)
 	ptmx, err := pty.Start(c)
@@ -20,11 +25,12 @@ func runPipe(t *testing.T, script, input string) (int, string) {
 	}
 	defer ptmx.Close()
 	var out bytes.Buffer
-	code, err := pipe(c, ptmx, strings.NewReader(input), &out)
+	var ticks []Tick
+	code, err := pipe(c, ptmx, strings.NewReader(input), &out, func(tk Tick) { ticks = append(ticks, tk) })
 	if err != nil {
 		t.Fatal(err)
 	}
-	return code, out.String()
+	return code, out.String(), ticks
 }
 
 func TestHarnessSeesATerminal(t *testing.T) {
@@ -44,5 +50,12 @@ func TestInputReachesHarness(t *testing.T) {
 func TestPtyExitCode(t *testing.T) {
 	if code, _ := runPipe(t, `exit 4`, ""); code != 4 {
 		t.Fatalf("got %d, want 4", code)
+	}
+}
+
+func TestTypingIsTicked(t *testing.T) {
+	_, _, ticks := runPipeTicks(t, `read x`, "hello\n")
+	if len(ticks) != 1 || ticks[0].Keys != 1 || ticks[0].Pasted {
+		t.Fatalf("got %+v, want one tick with the input chunk", ticks)
 	}
 }
