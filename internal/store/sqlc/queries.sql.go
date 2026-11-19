@@ -54,6 +54,28 @@ func (q *Queries) EventsBetween(ctx context.Context, arg EventsBetweenParams) ([
 	return items, nil
 }
 
+const getMeta = `-- name: GetMeta :one
+SELECT value FROM meta WHERE key = ?
+`
+
+func (q *Queries) GetMeta(ctx context.Context, key string) (string, error) {
+	row := q.db.QueryRowContext(ctx, getMeta, key)
+	var value string
+	err := row.Scan(&value)
+	return value, err
+}
+
+const getSessionState = `-- name: GetSessionState :one
+SELECT data FROM session_state WHERE session_id = ?
+`
+
+func (q *Queries) GetSessionState(ctx context.Context, sessionID string) (string, error) {
+	row := q.db.QueryRowContext(ctx, getSessionState, sessionID)
+	var data string
+	err := row.Scan(&data)
+	return data, err
+}
+
 const insertEvent = `-- name: InsertEvent :one
 INSERT INTO events (ts, kind, session_id, project_id, harness, source, data)
 VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -139,4 +161,35 @@ func (q *Queries) PendingEvents(ctx context.Context, limit int64) ([]Event, erro
 		return nil, err
 	}
 	return items, nil
+}
+
+const putSessionState = `-- name: PutSessionState :exec
+INSERT INTO session_state (session_id, data, updated_at) VALUES (?, ?, ?)
+ON CONFLICT (session_id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at
+`
+
+type PutSessionStateParams struct {
+	SessionID string
+	Data      string
+	UpdatedAt int64
+}
+
+func (q *Queries) PutSessionState(ctx context.Context, arg PutSessionStateParams) error {
+	_, err := q.db.ExecContext(ctx, putSessionState, arg.SessionID, arg.Data, arg.UpdatedAt)
+	return err
+}
+
+const setMetaIfMissing = `-- name: SetMetaIfMissing :exec
+INSERT INTO meta (key, value) VALUES (?, ?)
+ON CONFLICT (key) DO NOTHING
+`
+
+type SetMetaIfMissingParams struct {
+	Key   string
+	Value string
+}
+
+func (q *Queries) SetMetaIfMissing(ctx context.Context, arg SetMetaIfMissingParams) error {
+	_, err := q.db.ExecContext(ctx, setMetaIfMissing, arg.Key, arg.Value)
+	return err
 }

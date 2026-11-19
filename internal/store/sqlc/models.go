@@ -19,3 +19,14 @@ type Event struct {
 	Data       string
 	UploadedAt sql.NullInt64
 }
+
+type Meta struct {
+	Key   string
+	Value string
+}
+
+type SessionState struct {
+	SessionID string
+	Data      string
+	UpdatedAt int64
+}

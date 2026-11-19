@@ -12,3 +12,16 @@ CREATE TABLE IF NOT EXISTS events (
 
 CREATE INDEX IF NOT EXISTS events_ts ON events (ts);
 CREATE INDEX IF NOT EXISTS events_pending ON events (seq) WHERE uploaded_at IS NULL;
+
+-- key/value, e.g. install salt
+CREATE TABLE IF NOT EXISTS meta (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
+-- adapter state per session, shared by hook processes
+CREATE TABLE IF NOT EXISTS session_state (
+    session_id TEXT PRIMARY KEY,
+    data       TEXT    NOT NULL, -- json
+    updated_at INTEGER NOT NULL  -- unix ms
+);

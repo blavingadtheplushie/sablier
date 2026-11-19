@@ -1,10 +1,13 @@
-// store is the local event db. several processes (hooks, launcher) write to it at once.
+// local event db, written by several processes at once
 package store
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
 	_ "embed"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -27,8 +30,8 @@ func Open(path string) (*Store, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return nil, err
 	}
-	// wal + busy_timeout so concurrent hook processes wait instead of failing
-	dsn := "file:" + path + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)"
+
+	dsn := "file:" + path + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_txlock=immediate"
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, err
@@ -42,13 +45,35 @@ func Open(path string) (*Store, error) {
 
 func (s *Store) Close() error { return s.db.Close() }
 
-// Append saves e and returns it with Seq set.
 func (s *Store) Append(ctx context.Context, e event.Event) (event.Event, error) {
+	err := s.Update(ctx, func(tx *Tx) error {
+		var err error
+		e, err = tx.Append(ctx, e)
+		return err
+	})
+	return e, err
+}
+
+type Tx struct{ q *sqlc.Queries }
+
+func (s *Store) Update(ctx context.Context, fn func(*Tx) error) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	if err := fn(&Tx{q: s.q.WithTx(tx)}); err != nil {
+		tx.Rollback()
+		return err
+	}
+	return tx.Commit()
+}
+
+func (t *Tx) Append(ctx context.Context, e event.Event) (event.Event, error) {
 	data := string(e.Data)
 	if data == "" {
 		data = "{}"
 	}
-	seq, err := s.q.InsertEvent(ctx, sqlc.InsertEventParams{
+	seq, err := t.q.InsertEvent(ctx, sqlc.InsertEventParams{
 		Ts:        e.TS.UnixMilli(),
 		Kind:      string(e.Kind),
 		SessionID: e.SessionID,
@@ -64,7 +89,37 @@ func (s *Store) Append(ctx context.Context, e event.Event) (event.Event, error) 
 	return e, nil
 }
 
-// Between returns events with from <= ts < to, oldest first.
+func (t *Tx) SessionState(ctx context.Context, sessionID string) ([]byte, error) {
+	data, err := t.q.GetSessionState(ctx, sessionID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	return []byte(data), err
+}
+
+func (t *Tx) PutSessionState(ctx context.Context, sessionID string, data []byte, now time.Time) error {
+	return t.q.PutSessionState(ctx, sqlc.PutSessionStateParams{
+		SessionID: sessionID,
+		Data:      string(data),
+		UpdatedAt: now.UnixMilli(),
+	})
+}
+
+func (s *Store) Salt(ctx context.Context) ([]byte, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return nil, err
+	}
+	if err := s.q.SetMetaIfMissing(ctx, sqlc.SetMetaIfMissingParams{Key: "salt", Value: hex.EncodeToString(b)}); err != nil {
+		return nil, err
+	}
+	v, err := s.q.GetMeta(ctx, "salt")
+	if err != nil {
+		return nil, err
+	}
+	return hex.DecodeString(v)
+}
+
 func (s *Store) Between(ctx context.Context, from, to time.Time) ([]event.Event, error) {
 	rows, err := s.q.EventsBetween(ctx, sqlc.EventsBetweenParams{
 		FromTs: from.UnixMilli(),
@@ -76,7 +131,7 @@ func (s *Store) Between(ctx context.Context, from, to time.Time) ([]event.Event,
 	return fromRows(rows), nil
 }
 
-// Pending returns up to limit events not uploaded yet, by seq.
+// events not uploaded yet, by seq
 func (s *Store) Pending(ctx context.Context, limit int64) ([]event.Event, error) {
 	rows, err := s.q.PendingEvents(ctx, limit)
 	if err != nil {
@@ -85,7 +140,7 @@ func (s *Store) Pending(ctx context.Context, limit int64) ([]event.Event, error)
 	return fromRows(rows), nil
 }
 
-// MarkUploaded marks every event up to and including seq as sent.
+// marks every event up to seq as sent
 func (s *Store) MarkUploaded(ctx context.Context, seq int64, at time.Time) error {
 	return s.q.MarkUploaded(ctx, sqlc.MarkUploadedParams{
 		UploadedAt: sql.NullInt64{Int64: at.UnixMilli(), Valid: true},

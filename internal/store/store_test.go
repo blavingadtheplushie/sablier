@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -81,7 +82,7 @@ func TestPendingAndMarkUploaded(t *testing.T) {
 	}
 }
 
-// hooks run as separate processes; separate connections is the closest test.
+// separate connections, like separate hook processes
 func TestConcurrentWriters(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "sablier.db")
 	ctx := context.Background()
@@ -118,5 +119,62 @@ func TestConcurrentWriters(t *testing.T) {
 	}
 	if len(all) != 100 {
 		t.Fatalf("got %d events, want 100", len(all))
+	}
+}
+
+func TestSessionState(t *testing.T) {
+	s, ctx := open(t), context.Background()
+	now := time.Now()
+
+	err := s.Update(ctx, func(tx *Tx) error {
+		got, err := tx.SessionState(ctx, "s1")
+		if err != nil || got != nil {
+			t.Fatalf("new session: got %q, %v", got, err)
+		}
+		return tx.PutSessionState(ctx, "s1", []byte(`{"open_turn":"p1"}`), now)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = s.Update(ctx, func(tx *Tx) error {
+		got, err := tx.SessionState(ctx, "s1")
+		if string(got) != `{"open_turn":"p1"}` {
+			t.Fatalf("got %q, %v", got, err)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestUpdateRollsBack(t *testing.T) {
+	s, ctx := open(t), context.Background()
+	boom := errors.New("boom")
+
+	err := s.Update(ctx, func(tx *Tx) error {
+		if _, err := tx.Append(ctx, mk(t, time.Now())); err != nil {
+			t.Fatal(err)
+		}
+		return boom
+	})
+	if !errors.Is(err, boom) {
+		t.Fatalf("got %v", err)
+	}
+	if all, _ := s.Pending(ctx, 10); len(all) != 0 {
+		t.Fatalf("event kept after rollback: %+v", all)
+	}
+}
+
+func TestSaltIsStable(t *testing.T) {
+	s, ctx := open(t), context.Background()
+	a, err := s.Salt(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := s.Salt(ctx)
+	if len(a) != 32 || string(a) != string(b) {
+		t.Fatalf("salt changed or wrong size: %x %x", a, b)
 	}
 }
