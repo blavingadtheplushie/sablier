@@ -8,7 +8,7 @@ LDFLAGS := -s -w \
 	-X $(PKG)/internal/version.Commit=$(COMMIT) \
 	-X $(PKG)/internal/version.Date=$(DATE)
 
-.PHONY: all build run install test lint docs tidy clean
+.PHONY: all build run install test lint docs generate tidy clean
 
 all: build
 
@@ -27,6 +27,9 @@ test:
 lint:
 	go vet ./...
 	@command -v golangci-lint >/dev/null && golangci-lint run || echo "golangci-lint not installed, skipped"
+
+generate:
+	sqlc generate
 
 docs:
 	go run ./tools/gendocs -o docs/reference
