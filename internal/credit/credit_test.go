@@ -124,3 +124,66 @@ func TestEmpty(t *testing.T) {
 		t.Errorf("got %+v", rep)
 	}
 }
+
+func (s *sess) tick(sec, window float64, keys, mouse int) *sess {
+	return s.add(event.InputTick, sec, event.InputTickData{WindowMs: int64(window * 1000), Keys: keys, Mouse: mouse})
+}
+func (s *sess) focus(sec float64, in bool) *sess {
+	return s.add(event.Focus, sec, event.FocusData{In: in})
+}
+
+// one tick: its window plus 2 min
+func TestTyping(t *testing.T) {
+	s := (&sess{id: "s", project: "p"}).tick(60, 10, 5, 0)
+	check(t, Compute(s.events, Default, at(mins(30))).Credited, 2*time.Minute+10*time.Second)
+}
+
+func TestSteadyTyping(t *testing.T) {
+	s := &sess{id: "s", project: "p"}
+	for sec := 10.0; sec <= mins(5); sec += 10 {
+		s.tick(sec, 10, 3, 0)
+	}
+	check(t, Compute(s.events, Default, at(mins(30))).Credited, 7*time.Minute)
+}
+
+func TestScrollingCounts(t *testing.T) {
+	s := (&sess{id: "s", project: "p"}).tick(10, 10, 0, 4)
+	check(t, Compute(s.events, Default, at(mins(30))).Credited, 2*time.Minute+10*time.Second)
+}
+
+func TestEmptyTickIgnored(t *testing.T) {
+	s := (&sess{id: "s", project: "p"}).tick(10, 10, 0, 0)
+	check(t, Compute(s.events, Default, at(mins(30))).Credited, 0)
+}
+
+// gone 90s to check docs, back before 2 min: nothing cut
+func TestShortTrip(t *testing.T) {
+	s := (&sess{id: "s", project: "p"}).start(0).prompt(0).
+		focus(mins(1), false).focus(mins(2.5), true)
+	check(t, Compute(s.events, Default, at(mins(5))).Credited, 5*time.Minute)
+}
+
+// gone 4 min: credit stops when you left, the rest of the prompt's window still counts after you're back
+func TestLongTrip(t *testing.T) {
+	s := (&sess{id: "s", project: "p"}).start(0).prompt(0).
+		focus(mins(1), false).focus(mins(4.5), true)
+	// [0,1] + [4.5,5]
+	check(t, Compute(s.events, Default, at(mins(30))).Credited, 90*time.Second)
+}
+
+// still away: cut once the trip is past 2 min, not before
+func TestOpenTrip(t *testing.T) {
+	s := (&sess{id: "s", project: "p"}).start(0).prompt(0).focus(mins(1), false)
+	check(t, Compute(s.events, Default, at(mins(2.5))).Credited, 150*time.Second)
+	check(t, Compute(s.events, Default, at(mins(10))).Credited, time.Minute)
+}
+
+// a typing burst after coming back counts normally
+func TestTypingAfterLongTrip(t *testing.T) {
+	s := (&sess{id: "s", project: "p"}).
+		tick(10, 10, 5, 0).
+		focus(20, false).focus(mins(10), true).
+		tick(mins(10)+10, 10, 5, 0)
+	// [0,20] before leaving + [10m, 10m10s+2m] after
+	check(t, Compute(s.events, Default, at(mins(30))).Credited, 20*time.Second+130*time.Second)
+}

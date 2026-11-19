@@ -8,13 +8,14 @@ import (
 	"github.com/espcaa/sablier/internal/event"
 )
 
-const Version = 1
+const Version = 2
 
 type Rules struct {
-	Cap time.Duration // n, max window before and after each action
+	AgentCap time.Duration
+	InputCap time.Duration
 }
 
-var Default = Rules{Cap: 5 * time.Minute}
+var Default = Rules{AgentCap: 5 * time.Minute, InputCap: 2 * time.Minute}
 
 type Report struct {
 	Credited  time.Duration
@@ -34,10 +35,11 @@ type window struct {
 	anchor  time.Time
 }
 
-// rules, per session, n = r.Cap:
-//  1. each action earns up to n after it
-//  2. and up to n before it, only once the agent was don
-//  3. overlapping time counts once
+// rules, per session:
+//  1. prompts and approvals earn up to AgentCap after them, and before them once the agent was done
+//  2. typing or scrolling earns its tick window plus up to InputCap after it
+//  3. leaving the terminal for longer than InputCap cuts credit from the moment you left
+//  4. overlapping time counts once, for the project of the most recent action
 //
 // nothing is counted after until.
 func Compute(events []event.Event, r Rules, until time.Time) Report {
@@ -62,7 +64,7 @@ func Compute(events []event.Event, r Rules, until time.Time) Report {
 	var windows []window
 	var busy []span
 	for _, id := range order {
-		w, b, n := session(sessions[id], r.Cap)
+		w, b, n := session(sessions[id], r, until)
 		windows = append(windows, w...)
 		busy = append(busy, b...)
 		rep.Actions += n
@@ -80,8 +82,15 @@ func Compute(events []event.Event, r Rules, until time.Time) Report {
 	return rep
 }
 
-func session(events []event.Event, n time.Duration) ([]window, []span, int) {
+type focusEvent struct {
+	at time.Time
+	in bool
+}
+
+func session(events []event.Event, r Rules, until time.Time) ([]window, []span, int) {
 	var (
+		out      []window
+		focus    []focusEvent
 		start    time.Time // session_start, if seen
 		turns    []span
 		open     = map[string]time.Time{}
@@ -113,13 +122,25 @@ func session(events []event.Event, n time.Duration) ([]window, []span, int) {
 				latency[len(actions)] = time.Duration(p.(*event.ApprovalData).LatencyMs) * time.Millisecond
 			}
 			actions = append(actions, e)
+		case event.InputTick:
+			if p, err := e.Payload(); err == nil {
+				d := p.(*event.InputTickData)
+				if d.Keys > 0 || d.Mouse > 0 || d.Pasted {
+					from := e.TS.Add(-time.Duration(d.WindowMs) * time.Millisecond)
+					out = append(out, window{span{from, e.TS.Add(r.InputCap)}, e.ProjectID, e.TS})
+				}
+			}
+		case event.Focus:
+			if p, err := e.Payload(); err == nil {
+				focus = append(focus, focusEvent{e.TS, p.(*event.FocusData).In})
+			}
 		}
 	}
 	for _, s := range open {
 		turns = append(turns, span{s, lastSeen}) // never ended, assume busy until the last event
 	}
 
-	var out []window
+	n := r.AgentCap
 	for i, a := range actions {
 		h := a.TS
 		out = append(out, window{span{h, h.Add(n)}, a.ProjectID, h})
@@ -142,7 +163,51 @@ func session(events []event.Event, n time.Duration) ([]window, []span, int) {
 		from = latest(from, h.Add(-n))
 		out = append(out, window{span{from, h}, a.ProjectID, h})
 	}
-	return out, turns, len(actions)
+	return subtract(out, away(focus, r.InputCap, until)), turns, len(actions)
+}
+
+func away(focus []focusEvent, limit time.Duration, until time.Time) []span {
+	var trips []span
+	var left time.Time
+	for _, f := range focus {
+		switch {
+		case !f.in && left.IsZero():
+			left = f.at
+		case f.in && !left.IsZero():
+			if f.at.Sub(left) > limit {
+				trips = append(trips, span{left, f.at})
+			}
+			left = time.Time{}
+		}
+	}
+	if !left.IsZero() && until.Sub(left) > limit {
+		trips = append(trips, span{left, until})
+	}
+	return trips
+}
+
+func subtract(ws []window, gaps []span) []window {
+	for _, g := range gaps {
+		var next []window
+		for _, w := range ws {
+			if !w.end.After(g.start) || !w.start.Before(g.end) {
+				next = append(next, w)
+				continue
+			}
+			if w.start.Before(g.start) {
+				before := w
+				before.end = g.start
+				next = append(next, before)
+			}
+			if w.end.After(g.end) {
+				after := w
+				after.start = g.end
+				next = append(next, after)
+			}
+		}
+		ws = next
+	}
+	return ws
 }
 
 func busyAt(turns []span, t time.Time) bool {
