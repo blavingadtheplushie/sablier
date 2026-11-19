@@ -8,12 +8,20 @@ LDFLAGS := -s -w \
 	-X $(PKG)/internal/version.Commit=$(COMMIT) \
 	-X $(PKG)/internal/version.Date=$(DATE)
 
-.PHONY: all build run install test lint docs generate tidy clean
+.PHONY: all build run install test lint docs generate tidy clean server db
 
 all: build
 
 build:
 	go build -ldflags "$(LDFLAGS)" -o bin/$(BINARY) ./cmd/$(BINARY)
+	go build -ldflags "$(LDFLAGS)" -o bin/$(BINARY)-server ./cmd/$(BINARY)-server
+
+# local postgres on 127.0.0.1:5433
+db:
+	docker compose up -d --wait postgres
+
+server: db
+	go run ./cmd/$(BINARY)-server
 
 run:
 	go run ./cmd/$(BINARY) $(ARGS)

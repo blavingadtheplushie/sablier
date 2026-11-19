@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sablier_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-sablier}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-sablier}
+      POSTGRES_DB: ${DB_NAME:-sablier}
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-sablier} -d ${DB_NAME:-sablier}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
