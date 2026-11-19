@@ -125,3 +125,90 @@ func TestCategory(t *testing.T) {
 		}
 	}
 }
+
+// real session timings
+func TestApprovalAllowed(t *testing.T) {
+	got := run(t,
+		step{40.700, Hook{Event: "UserPromptSubmit", PromptID: "p1", Prompt: "run it"}},
+		step{43.289, Hook{Event: "PreToolUse", PromptID: "p1", ToolName: "Bash", ToolUseID: "t1"}},
+		step{43.305, Hook{Event: "PermissionRequest", PromptID: "p1", ToolName: "Bash"}},
+		step{45.677, Hook{Event: "PostToolUse", PromptID: "p1", ToolName: "Bash", ToolUseID: "t1", DurationMs: 438}},
+		step{48.080, Hook{Event: "Stop", PromptID: "p1"}},
+	)
+	expect(t, got, `
+		40.7 prompt_sent &{Pasted:false ComposeMs:0 Queued:false ApprovalLike:false Hash:<hash>}
+		40.7 agent_turn_start &{TurnID:p1}
+		45.239 approval &{Allow:true LatencyMs:1934 Tool:shell}
+		45.677 tool_call &{Tool:shell DurationMs:438}
+		48.08 agent_turn_end &{TurnID:p1 Reason:done}
+	`)
+}
+
+// real session: p1 interrupted, p2 typed 3s later
+func TestInterrupt(t *testing.T) {
+	got := run(t,
+		step{0, Hook{Event: "UserPromptSubmit", PromptID: "p1", Prompt: "do x"}},
+		step{3, Hook{Event: "UserPromptSubmit", PromptID: "p2", Prompt: "do y"}},
+		step{5, Hook{Event: "Stop", PromptID: "p2"}},
+	)
+	expect(t, got, `
+		0 prompt_sent &{Pasted:false ComposeMs:0 Queued:false ApprovalLike:false Hash:<hash>}
+		0 agent_turn_start &{TurnID:p1}
+		0 agent_turn_end &{TurnID:p1 Reason:interrupted}
+		3 prompt_sent &{Pasted:false ComposeMs:0 Queued:false ApprovalLike:false Hash:<hash>}
+		3 agent_turn_start &{TurnID:p2}
+		5 agent_turn_end &{TurnID:p2 Reason:done}
+	`)
+}
+
+// real session: write denied, new prompt 14s later, no stop
+func TestDenyWithFeedback(t *testing.T) {
+	got := run(t,
+		step{0, Hook{Event: "UserPromptSubmit", PromptID: "p1", Prompt: "write it"}},
+		step{65, Hook{Event: "PreToolUse", PromptID: "p1", ToolName: "Write", ToolUseID: "t1"}},
+		step{65, Hook{Event: "PermissionRequest", PromptID: "p1", ToolName: "Write"}},
+		step{79, Hook{Event: "UserPromptSubmit", PromptID: "p2", Prompt: "no, put it in docs/"}},
+	)
+	expect(t, got, `
+		0 prompt_sent &{Pasted:false ComposeMs:0 Queued:false ApprovalLike:false Hash:<hash>}
+		0 agent_turn_start &{TurnID:p1}
+		79 approval &{Allow:false LatencyMs:14000 Tool:edit}
+		65 agent_turn_end &{TurnID:p1 Reason:interrupted}
+		79 prompt_sent &{Pasted:false ComposeMs:0 Queued:false ApprovalLike:false Hash:<hash>}
+		79 agent_turn_start &{TurnID:p2}
+	`)
+}
+
+// real session: main turn stopped with a subagent dialog open
+func TestSubagentDialogOutlivesStop(t *testing.T) {
+	got := run(t,
+		step{0, Hook{Event: "UserPromptSubmit", PromptID: "p1", Prompt: "look into it"}},
+		step{6.738, Hook{Event: "PreToolUse", PromptID: "p1", AgentID: "a1", ToolName: "Read", ToolUseID: "t1"}},
+		step{6.759, Hook{Event: "PermissionRequest", PromptID: "p1", AgentID: "a1", ToolName: "Read"}},
+		step{6.894, Hook{Event: "Stop", PromptID: "p1"}},
+		step{9.229, Hook{Event: "PostToolUse", PromptID: "p1", AgentID: "a1", ToolName: "Read", ToolUseID: "t1", DurationMs: 23}},
+	)
+	expect(t, got, `
+		0 prompt_sent &{Pasted:false ComposeMs:0 Queued:false ApprovalLike:false Hash:<hash>}
+		0 agent_turn_start &{TurnID:p1}
+		6.894 agent_turn_end &{TurnID:p1 Reason:done}
+		9.206 approval &{Allow:true LatencyMs:2447 Tool:read}
+		9.229 tool_call &{Tool:read DurationMs:23}
+	`)
+}
+
+func TestSessionEndClosesEverything(t *testing.T) {
+	got := run(t,
+		step{0, Hook{Event: "UserPromptSubmit", PromptID: "p1", Prompt: "go"}},
+		step{2, Hook{Event: "PreToolUse", PromptID: "p1", ToolName: "Bash", ToolUseID: "t1"}},
+		step{2, Hook{Event: "PermissionRequest", PromptID: "p1", ToolName: "Bash"}},
+		step{30, Hook{Event: "SessionEnd"}},
+	)
+	expect(t, got, `
+		0 prompt_sent &{Pasted:false ComposeMs:0 Queued:false ApprovalLike:true Hash:<hash>}
+		0 agent_turn_start &{TurnID:p1}
+		30 approval &{Allow:false LatencyMs:28000 Tool:shell}
+		2 agent_turn_end &{TurnID:p1 Reason:closed}
+		30 session_end &{Reason:exit}
+	`)
+}
