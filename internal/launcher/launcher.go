@@ -8,6 +8,8 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+
+	"golang.org/x/term"
 )
 
 // runs a harness attached to this terminal with SABLIER_RUN_ID set, returns its exit code
@@ -23,24 +25,30 @@ func Run(name string, args []string) (int, error) {
 	}
 
 	c := exec.Command(path, args...)
-	c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr
 	c.Env = append(os.Environ(), "SABLIER_RUN_ID="+id)
 
-	// ctrl-c reaches the whole process group, let the harness handle it and keep waiting.
-	// notify, not ignore: ignored signals would be inherited by the child
+	if term.IsTerminal(int(os.Stdin.Fd())) && term.IsTerminal(int(os.Stdout.Fd())) {
+		return runTerminal(c)
+	}
+	return runDirect(c)
+}
+
+func runDirect(c *exec.Cmd) (int, error) {
+	c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr
+
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt)
 	defer signal.Stop(sig)
 
-	err = c.Run()
+	return exitCode(c.Run())
+}
+
+func exitCode(err error) (int, error) {
 	var exit *exec.ExitError
 	if errors.As(err, &exit) {
 		return exit.ExitCode(), nil
 	}
-	if err != nil {
-		return 0, err
-	}
-	return 0, nil
+	return 0, err
 }
 
 func newRunID() (string, error) {
