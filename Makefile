@@ -43,6 +43,7 @@ lint:
 
 generate:
 	sqlc generate
+	templ generate
 
 docs:
 	go run ./tools/gendocs -o docs/reference

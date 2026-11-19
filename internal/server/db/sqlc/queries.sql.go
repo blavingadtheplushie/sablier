@@ -31,6 +31,30 @@ func (q *Queries) ClaimInstall(ctx context.Context, arg ClaimInstallParams) (pgt
 	return id, err
 }
 
+const createSession = `-- name: CreateSession :exec
+INSERT INTO sessions (token_hash, user_id, expires_at) VALUES ($1, $2, $3)
+`
+
+type CreateSessionParams struct {
+	TokenHash []byte
+	UserID    string
+	ExpiresAt pgtype.Timestamptz
+}
+
+func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) error {
+	_, err := q.db.Exec(ctx, createSession, arg.TokenHash, arg.UserID, arg.ExpiresAt)
+	return err
+}
+
+const deleteSession = `-- name: DeleteSession :exec
+DELETE FROM sessions WHERE token_hash = $1
+`
+
+func (q *Queries) DeleteSession(ctx context.Context, tokenHash []byte) error {
+	_, err := q.db.Exec(ctx, deleteSession, tokenHash)
+	return err
+}
+
 const insertEvent = `-- name: InsertEvent :execrows
 INSERT INTO events (install_id, seq, ts, kind, session_id, project_id, harness, source, data)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -136,6 +160,25 @@ SELECT id, slack_id, name, api_key, created_at FROM users WHERE api_key = $1
 
 func (q *Queries) UserByAPIKey(ctx context.Context, apiKey string) (User, error) {
 	row := q.db.QueryRow(ctx, userByAPIKey, apiKey)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.SlackID,
+		&i.Name,
+		&i.ApiKey,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const userBySession = `-- name: UserBySession :one
+SELECT u.id, u.slack_id, u.name, u.api_key, u.created_at FROM sessions s
+JOIN users u ON u.id = s.user_id
+WHERE s.token_hash = $1 AND s.expires_at > now()
+`
+
+func (q *Queries) UserBySession(ctx context.Context, tokenHash []byte) (User, error) {
+	row := q.db.QueryRow(ctx, userBySession, tokenHash)
 	var i User
 	err := row.Scan(
 		&i.ID,

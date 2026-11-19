@@ -3,6 +3,7 @@ module github.com/espcaa/sablier
 go 1.27.1
 
 require (
+	github.com/a-h/templ v0.3.1100
 	github.com/creack/pty v1.1.24
 	github.com/go-chi/chi/v5 v5.5.0
 	github.com/jackc/pgx/v5 v5.13.0

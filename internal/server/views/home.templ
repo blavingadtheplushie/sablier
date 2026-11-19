@@ -1,0 +1,36 @@
+package views
+
+type Me struct {
+	Name   string
+	APIKey string
+}
+
+templ layout(title string) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>{ title }</title>
+		</head>
+		<body>
+			{ children... }
+		</body>
+	</html>
+}
+
+templ Home(me *Me) {
+	@layout("sablier") {
+		<h1>sablier</h1>
+		if me == nil {
+			<p><a href="/auth/login">sign in with Hack Club</a></p>
+		} else {
+			<p>signed in as { me.Name }</p>
+			<p>api key: <code>{ me.APIKey }</code></p>
+			<p>run <code>sablier login</code> and paste it.</p>
+			<form method="post" action="/auth/logout">
+				<button type="submit">sign out</button>
+			</form>
+		}
+	}
+}

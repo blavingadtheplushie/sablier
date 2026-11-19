@@ -35,6 +35,13 @@ type Project struct {
 	UpdatedAt pgtype.Timestamptz
 }
 
+type Session struct {
+	TokenHash []byte
+	UserID    string
+	CreatedAt pgtype.Timestamptz
+	ExpiresAt pgtype.Timestamptz
+}
+
 type User struct {
 	ID        string
 	SlackID   pgtype.Text

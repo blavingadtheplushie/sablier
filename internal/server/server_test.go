@@ -22,7 +22,7 @@ func TestHealth(t *testing.T) {
 	}
 	for name, c := range cases {
 		rec := httptest.NewRecorder()
-		Handler(c.db).ServeHTTP(rec, httptest.NewRequest("GET", "/health", nil))
+		New(Config{}, c.db, nil, nil).ServeHTTP(rec, httptest.NewRequest("GET", "/health", nil))
 		if rec.Code != c.code {
 			t.Errorf("%s: got %d, want %d", name, rec.Code, c.code)
 		}
