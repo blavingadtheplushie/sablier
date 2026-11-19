@@ -20,7 +20,7 @@ func TestRecorder(t *testing.T) {
 
 	var warn bytes.Buffer
 	rec := newRecorder(ctx, "r1", &warn)
-	rec.tick(launcher.Tick{At: now, Window: 10 * time.Second, Keys: 7, Pasted: true})
+	rec.tick(launcher.Tick{At: now, Window: 10 * time.Second, Keys: 7, Mouse: 3, Pasted: true})
 	rec.focus(false, now.Add(time.Second))
 	rec.close()
 	if warn.Len() != 0 {
@@ -41,7 +41,7 @@ func TestRecorder(t *testing.T) {
 		t.Fatalf("bad envelope: %+v", e)
 	}
 	p, _ := e.Payload()
-	if d := p.(*event.InputTickData); d.Keys != 7 || !d.Pasted || d.WindowMs != 10000 {
+	if d := p.(*event.InputTickData); d.Keys != 7 || d.Mouse != 3 || !d.Pasted || d.WindowMs != 10000 {
 		t.Fatalf("bad payload: %+v", d)
 	}
 	f := events[1]

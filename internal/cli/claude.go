@@ -83,6 +83,7 @@ func (r *recorder) tick(tk launcher.Tick) {
 	r.save(event.InputTick, tk.At, event.InputTickData{
 		WindowMs: tk.Window.Milliseconds(),
 		Keys:     tk.Keys,
+		Mouse:    tk.Mouse,
 		Pasted:   tk.Pasted,
 	})
 }

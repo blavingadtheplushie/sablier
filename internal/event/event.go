@@ -56,6 +56,7 @@ type SessionEndData struct {
 type InputTickData struct {
 	WindowMs int64 `json:"window_ms"`
 	Keys     int   `json:"keys"`
+	Mouse    int   `json:"mouse"` // scrolls and clicks
 	Pasted   bool  `json:"pasted"`
 }
 

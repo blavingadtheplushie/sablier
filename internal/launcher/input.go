@@ -12,6 +12,7 @@ type Tick struct {
 	At     time.Time // end of the window
 	Window time.Duration
 	Keys   int
+	Mouse  int // scrolls and clicks
 	Pasted bool
 }
 
@@ -26,6 +27,7 @@ var (
 type counter struct {
 	mu      sync.Mutex
 	keys    int
+	mouse   int
 	pasted  bool
 	inPaste bool
 }
@@ -34,11 +36,14 @@ func (c *counter) observe(chunk []byte) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if !c.inPaste && len(withoutNoise(chunk)) == 0 {
-		return
-	}
 	if bytes.Contains(chunk, pasteStart) {
 		c.inPaste = true
+	}
+	if !c.inPaste {
+		c.mouse += len(mouseSeq.FindAll(chunk, -1))
+		if len(withoutNoise(chunk)) == 0 {
+			return
+		}
 	}
 	if c.inPaste {
 		c.pasted = true
@@ -60,15 +65,16 @@ func withoutNoise(chunk []byte) []byte {
 	return bytes.ReplaceAll(chunk, focusOut, nil)
 }
 
-func (c *counter) take() (int, bool) {
+// counts since the last take
+func (c *counter) take() Tick {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	keys, pasted := c.keys, c.pasted
-	c.keys, c.pasted = 0, false
-	return keys, pasted
+	t := Tick{Keys: c.keys, Mouse: c.mouse, Pasted: c.pasted}
+	c.keys, c.mouse, c.pasted = 0, 0, false
+	return t
 }
 
-// terminal focus, from the sequences the terminal sends once the harness enables focus reporting
+// terminal focus
 type focusWatcher struct {
 	known, in bool
 	onFocus   func(in bool, at time.Time)
@@ -107,8 +113,9 @@ func ticker(c *counter, interval time.Duration, onTick func(Tick), stop <-chan s
 	defer close(done)
 	last := time.Now()
 	flush := func(now time.Time) {
-		if keys, pasted := c.take(); keys > 0 || pasted {
-			onTick(Tick{At: now, Window: now.Sub(last), Keys: keys, Pasted: pasted})
+		if t := c.take(); t.Keys > 0 || t.Mouse > 0 || t.Pasted {
+			t.At, t.Window = now, now.Sub(last)
+			onTick(t)
 		}
 		last = now
 	}
