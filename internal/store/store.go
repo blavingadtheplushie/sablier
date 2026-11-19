@@ -131,6 +131,23 @@ func (s *Store) Between(ctx context.Context, from, to time.Time) ([]event.Event,
 	return fromRows(rows), nil
 }
 
+func (t *Tx) PutProject(ctx context.Context, id, root string) error {
+	return t.q.PutProject(ctx, sqlc.PutProjectParams{ID: id, Root: root})
+}
+
+// project id to root dir
+func (s *Store) Projects(ctx context.Context) (map[string]string, error) {
+	rows, err := s.q.Projects(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]string, len(rows))
+	for _, r := range rows {
+		out[r.ID] = r.Root
+	}
+	return out, nil
+}
+
 // events not uploaded yet, by seq
 func (s *Store) Pending(ctx context.Context, limit int64) ([]event.Event, error) {
 	rows, err := s.q.PendingEvents(ctx, limit)

@@ -25,6 +25,11 @@ type Meta struct {
 	Value string
 }
 
+type Project struct {
+	ID   string
+	Root string
+}
+
 type SessionState struct {
 	SessionID string
 	Data      string

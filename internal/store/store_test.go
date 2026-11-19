@@ -178,3 +178,20 @@ func TestSaltIsStable(t *testing.T) {
 		t.Fatalf("salt changed or wrong size: %x %x", a, b)
 	}
 }
+
+func TestProjects(t *testing.T) {
+	s, ctx := open(t), context.Background()
+	err := s.Update(ctx, func(tx *Tx) error {
+		if err := tx.PutProject(ctx, "id1", "/a"); err != nil {
+			return err
+		}
+		return tx.PutProject(ctx, "id1", "/b") // first root wins
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.Projects(ctx)
+	if err != nil || got["id1"] != "/a" || len(got) != 1 {
+		t.Fatalf("got %v, %v", got, err)
+	}
+}

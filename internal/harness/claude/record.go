@@ -35,7 +35,14 @@ func Record(ctx context.Context, s *store.Store, raw []byte, now time.Time) erro
 			}
 		}
 
-		st, events := Map(st, Input{Hook: h, Now: now, Salt: salt, ProjectID: project.ID(salt, h.Cwd)})
+		pid := project.ID(salt, h.Cwd)
+		if pid != "" {
+			if err := tx.PutProject(ctx, pid, project.Root(h.Cwd)); err != nil {
+				return err
+			}
+		}
+
+		st, events := Map(st, Input{Hook: h, Now: now, Salt: salt, ProjectID: pid})
 
 		for _, e := range events {
 			if _, err := tx.Append(ctx, e); err != nil {
