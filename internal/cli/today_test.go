@@ -34,7 +34,7 @@ func TestPrintReport(t *testing.T) {
 	var out bytes.Buffer
 	printReport(&out, r, map[string]string{"a": "/work/sablier"})
 
-	want := `30m credited
+	want := `30m today
 7m agent busy · 16 actions · 3h00m span
 
   20m      /work/sablier
@@ -47,6 +47,7 @@ func TestPrintReport(t *testing.T) {
 
 func TestTodayEndToEnd(t *testing.T) {
 	t.Setenv("SABLIER_HOME", t.TempDir())
+	t.Setenv("SABLIER_RUN_ID", "run1")
 	runHookCmd(t, `{"hook_event_name":"SessionStart","session_id":"s1","cwd":"/tmp"}`)
 	runHookCmd(t, `{"hook_event_name":"UserPromptSubmit","session_id":"s1","prompt_id":"p1","cwd":"/tmp","prompt":"hi"}`)
 

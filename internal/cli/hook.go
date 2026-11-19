@@ -34,6 +34,9 @@ func runHook(ctx context.Context, r io.Reader, now time.Time) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	if os.Getenv("SABLIER_RUN_ID") == "" {
+		return nil // don't run the hook if not started with our cli
+	}
 	raw, err := io.ReadAll(io.LimitReader(r, 4<<20))
 	if err != nil {
 		return err

@@ -30,6 +30,7 @@ func runHookCmd(t *testing.T, stdin string) (stdout, stderr string) {
 func TestHookStoresEvents(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("SABLIER_HOME", home)
+	t.Setenv("SABLIER_RUN_ID", "run1")
 
 	for _, payload := range []string{
 		`{"hook_event_name":"UserPromptSubmit","session_id":"s1","prompt_id":"p1","cwd":"/tmp","prompt":"secret words"}`,
@@ -74,6 +75,7 @@ func TestHookStoresEvents(t *testing.T) {
 func TestHookDebugLog(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("SABLIER_HOME", home)
+	t.Setenv("SABLIER_RUN_ID", "run1")
 	t.Setenv("SABLIER_DEBUG", "1")
 
 	runHookCmd(t, `{"hook_event_name":"Stop","session_id":"s1"}`)
@@ -85,6 +87,7 @@ func TestHookDebugLog(t *testing.T) {
 
 func TestHookBadInputStaysQuiet(t *testing.T) {
 	t.Setenv("SABLIER_HOME", t.TempDir())
+	t.Setenv("SABLIER_RUN_ID", "run1")
 
 	stdout, stderr := runHookCmd(t, "not json")
 	if stdout != "" {
@@ -92,5 +95,19 @@ func TestHookBadInputStaysQuiet(t *testing.T) {
 	}
 	if !strings.Contains(stderr, "not json") {
 		t.Fatalf("expected error on stderr, got %q", stderr)
+	}
+}
+
+func TestHookIgnoresPlainClaude(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("SABLIER_HOME", home)
+	t.Setenv("SABLIER_RUN_ID", "")
+
+	stdout, stderr := runHookCmd(t, `{"hook_event_name":"UserPromptSubmit","session_id":"s1","prompt_id":"p1","prompt":"hi"}`)
+	if stdout != "" || stderr != "" {
+		t.Fatalf("expected silence, got %q %q", stdout, stderr)
+	}
+	if _, err := os.Stat(filepath.Join(home, "sablier.db")); !os.IsNotExist(err) {
+		t.Fatal("db touched for a session not launched through sablier")
 	}
 }
