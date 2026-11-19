@@ -31,6 +31,7 @@ type Input struct {
 	Now       time.Time
 	Salt      []byte
 	ProjectID string
+	Session   string
 }
 
 // pure, no io
@@ -41,7 +42,7 @@ func Map(st State, in Input) (State, []event.Event) {
 	switch h.Event {
 	case "SessionStart":
 		if h.Source != "compact" { // same session continues
-			m.emit(event.SessionStart, in.Now, event.SessionStartData{Model: h.Model})
+			m.emit(event.SessionStart, in.Now, event.SessionStartData{Model: h.Model, HarnessSession: h.SessionID})
 		}
 
 	case "SessionEnd":
@@ -147,7 +148,10 @@ func (m *mapper) emit(kind event.Kind, ts time.Time, data any) {
 	if err != nil {
 		panic(err) // unknown kind, a bug here
 	}
-	e.SessionID = m.in.Hook.SessionID
+	e.SessionID = m.in.Session
+	if e.SessionID == "" {
+		e.SessionID = m.in.Hook.SessionID
+	}
 	e.ProjectID = m.in.ProjectID
 	e.Harness = Harness
 	e.Source = event.SourceAdapter

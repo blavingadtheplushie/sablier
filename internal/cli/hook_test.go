@@ -58,6 +58,9 @@ func TestHookStoresEvents(t *testing.T) {
 	var kinds []string
 	for _, e := range events {
 		kinds = append(kinds, string(e.Kind))
+		if e.SessionID != "run:run1" {
+			t.Fatalf("event not grouped under the launch: %+v", e)
+		}
 		if strings.Contains(string(e.Data), "secret") {
 			t.Fatalf("prompt text stored: %s", e.Data)
 		}

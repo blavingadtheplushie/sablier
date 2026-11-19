@@ -34,7 +34,8 @@ func runHook(ctx context.Context, r io.Reader, now time.Time) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	if os.Getenv("SABLIER_RUN_ID") == "" {
+	runID := os.Getenv("SABLIER_RUN_ID")
+	if runID == "" {
 		return nil // don't run the hook if not started with our cli
 	}
 	raw, err := io.ReadAll(io.LimitReader(r, 4<<20))
@@ -61,7 +62,7 @@ func runHook(ctx context.Context, r io.Reader, now time.Time) error {
 		return err
 	}
 	defer s.Close()
-	return claude.Record(ctx, s, raw, now)
+	return claude.Record(ctx, s, raw, now, runSession(runID))
 }
 
 // contains prompt text, local only

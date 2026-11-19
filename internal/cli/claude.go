@@ -43,6 +43,8 @@ func newClaudeCmd() *cobra.Command {
 	}
 }
 
+func runSession(runID string) string { return "run:" + runID }
+
 // saves launcher input as events. called from several goroutines
 type recorder struct {
 	ctx     context.Context
@@ -98,7 +100,7 @@ func (r *recorder) save(kind event.Kind, at time.Time, data any) {
 	}
 	e, err := event.New(kind, at, data)
 	if err == nil {
-		e.SessionID = "run:" + r.runID // linked to claude's session later
+		e.SessionID = runSession(r.runID)
 		e.ProjectID = r.project
 		e.Harness = claude.Harness
 		e.Source = event.SourceLauncher

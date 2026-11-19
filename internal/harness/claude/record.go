@@ -10,8 +10,8 @@ import (
 	"github.com/espcaa/sablier/internal/store"
 )
 
-// one transaction so concurrent hooks for a session can't interleave
-func Record(ctx context.Context, s *store.Store, raw []byte, now time.Time) error {
+// one transaction so concurrent hooks for a session can't interleave.
+func Record(ctx context.Context, s *store.Store, raw []byte, now time.Time, session string) error {
 	var h Hook
 	if err := json.Unmarshal(raw, &h); err != nil {
 		return fmt.Errorf("decode hook: %w", err)
@@ -42,7 +42,7 @@ func Record(ctx context.Context, s *store.Store, raw []byte, now time.Time) erro
 			}
 		}
 
-		st, events := Map(st, Input{Hook: h, Now: now, Salt: salt, ProjectID: pid})
+		st, events := Map(st, Input{Hook: h, Now: now, Salt: salt, ProjectID: pid, Session: session})
 
 		for _, e := range events {
 			if _, err := tx.Append(ctx, e); err != nil {

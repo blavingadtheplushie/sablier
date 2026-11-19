@@ -73,7 +73,7 @@ func TestSimpleTurn(t *testing.T) {
 		step{9, Hook{Event: "SessionEnd"}},
 	)
 	expect(t, got, `
-		0 session_start &{HarnessVersion: Model:opus}
+		0 session_start &{HarnessVersion: Model:opus HarnessSession:s1}
 		1 prompt_sent &{Pasted:false ComposeMs:0 Queued:false ApprovalLike:false Hash:<hash>}
 		1 agent_turn_start &{TurnID:p1}
 		4 tool_call &{Tool:shell DurationMs:500}
@@ -211,4 +211,19 @@ func TestSessionEndClosesEverything(t *testing.T) {
 		2 agent_turn_end &{TurnID:p1 Reason:closed}
 		30 session_end &{Reason:exit}
 	`)
+}
+
+func TestLaunchSession(t *testing.T) {
+	_, out := Map(State{}, Input{
+		Hook:    Hook{Event: "SessionStart", SessionID: "claude-1", Source: "startup"},
+		Now:     t0,
+		Session: "run:r1",
+	})
+	if len(out) != 1 || out[0].SessionID != "run:r1" {
+		t.Fatalf("got %+v", out)
+	}
+	p, _ := out[0].Payload()
+	if p.(*event.SessionStartData).HarnessSession != "claude-1" {
+		t.Fatalf("claude's session id lost: %+v", p)
+	}
 }

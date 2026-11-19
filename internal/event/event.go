@@ -45,7 +45,8 @@ type Event struct {
 
 type SessionStartData struct {
 	HarnessVersion string `json:"harness_version,omitempty"`
-	Model          string `json:"model,omitempty"` // stats only
+	Model          string `json:"model,omitempty"`           // stats only
+	HarnessSession string `json:"harness_session,omitempty"` // the harness's own id, to find its transcript
 }
 
 type SessionEndData struct {
