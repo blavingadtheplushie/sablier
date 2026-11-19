@@ -27,6 +27,7 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(
 		newVersionCmd(),
 		newHookCmd(),
+		newClaudeCmd(),
 	)
 
 	return root
