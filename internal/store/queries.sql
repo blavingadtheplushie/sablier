@@ -8,6 +8,9 @@ SELECT * FROM events
 WHERE ts >= sqlc.arg(from_ts) AND ts < sqlc.arg(to_ts)
 ORDER BY ts, seq;
 
+-- name: CountSessionEvents :one
+SELECT count(*) FROM events WHERE session_id = ? AND source = ?;
+
 -- name: PendingEvents :many
 SELECT * FROM events
 WHERE uploaded_at IS NULL

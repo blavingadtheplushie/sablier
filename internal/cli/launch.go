@@ -26,8 +26,10 @@ func runHarness(cmd *cobra.Command, harness, binary string, args []string) error
 	rec := newRecorder(context.Background(), harness, id, cmd.ErrOrStderr())
 	stopSync := startAutoSync(rec.s, syncEvery, cmd.ErrOrStderr())
 
+	start := time.Now()
 	code, err := launcher.Run(binary, args, launcher.Options{RunID: id, OnTick: rec.tick, OnFocus: rec.focus})
 	stopSync() // before close, it uses the store
+	rec.checkAdapter(time.Since(start))
 	rec.close()
 	if err != nil {
 		return err
@@ -103,6 +105,16 @@ func (r *recorder) save(kind event.Kind, at time.Time, data any) {
 		r.failed++
 		r.lastErr = err
 		r.mu.Unlock()
+	}
+}
+
+func (r *recorder) checkAdapter(ran time.Duration) {
+	if r.s == nil || ran < 10*time.Second {
+		return
+	}
+	n, err := r.s.CountSession(r.ctx, runSession(r.runID), event.SourceAdapter)
+	if err == nil && n == 0 {
+		fmt.Fprintf(r.warn, "sablier: %s's hooks didn't run, this session is missing prompts and turns\n", r.harness)
 	}
 }
 

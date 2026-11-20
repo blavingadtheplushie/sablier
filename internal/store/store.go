@@ -162,6 +162,10 @@ func (s *Store) Between(ctx context.Context, from, to time.Time) ([]event.Event,
 	return fromRows(rows), nil
 }
 
+func (s *Store) CountSession(ctx context.Context, session string, source event.Source) (int64, error) {
+	return s.q.CountSessionEvents(ctx, sqlc.CountSessionEventsParams{SessionID: session, Source: string(source)})
+}
+
 // events not uploaded yet, by seq
 func (s *Store) Pending(ctx context.Context, limit int64) ([]event.Event, error) {
 	rows, err := s.q.PendingEvents(ctx, limit)

@@ -10,6 +10,22 @@ import (
 	"database/sql"
 )
 
+const countSessionEvents = `-- name: CountSessionEvents :one
+SELECT count(*) FROM events WHERE session_id = ? AND source = ?
+`
+
+type CountSessionEventsParams struct {
+	SessionID string
+	Source    string
+}
+
+func (q *Queries) CountSessionEvents(ctx context.Context, arg CountSessionEventsParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countSessionEvents, arg.SessionID, arg.Source)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const eventsBetween = `-- name: EventsBetween :many
 SELECT seq, ts, kind, session_id, project_id, harness, source, data, uploaded_at FROM events
 WHERE ts >= ?1 AND ts < ?2
