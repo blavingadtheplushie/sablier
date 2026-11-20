@@ -2,6 +2,7 @@
 package credit
 
 import (
+	"fmt"
 	"sort"
 	"time"
 
@@ -281,4 +282,13 @@ func union(spans []span) time.Duration {
 		ws[i] = window{span: s}
 	}
 	return attribute(ws, map[string]time.Duration{})
+}
+
+// minutes, like 0m, 27m, 1h05m
+func Format(d time.Duration) string {
+	m := int(d.Round(time.Minute).Minutes())
+	if m < 60 {
+		return fmt.Sprintf("%dm", m)
+	}
+	return fmt.Sprintf("%dh%02dm", m/60, m%60)
 }

@@ -53,8 +53,8 @@ func printReport(w io.Writer, r credit.Report, names map[string]string) {
 		return
 	}
 
-	fmt.Fprintf(w, "%s today\n", dur(r.Credited))
-	fmt.Fprintf(w, "%s agent busy · %d actions · %s span\n\n", dur(r.AgentBusy), r.Actions, dur(r.Last.Sub(r.First)))
+	fmt.Fprintf(w, "%s today\n", credit.Format(r.Credited))
+	fmt.Fprintf(w, "%s agent busy · %d actions · %s span\n\n", credit.Format(r.AgentBusy), r.Actions, credit.Format(r.Last.Sub(r.First)))
 
 	ids := make([]string, 0, len(r.ByProject))
 	for id := range r.ByProject {
@@ -62,7 +62,7 @@ func printReport(w io.Writer, r credit.Report, names map[string]string) {
 	}
 	sort.Slice(ids, func(i, j int) bool { return r.ByProject[ids[i]] > r.ByProject[ids[j]] })
 	for _, id := range ids {
-		fmt.Fprintf(w, "  %-8s %s\n", dur(r.ByProject[id]), projectName(id, names))
+		fmt.Fprintf(w, "  %-8s %s\n", credit.Format(r.ByProject[id]), projectName(id, names))
 	}
 }
 
@@ -83,13 +83,4 @@ func tilde(p string) string {
 		return "~" + strings.TrimPrefix(p, home)
 	}
 	return p
-}
-
-// minutes, like 0m, 27m, 1h05m
-func dur(d time.Duration) string {
-	m := int(d.Round(time.Minute).Minutes())
-	if m < 60 {
-		return fmt.Sprintf("%dm", m)
-	}
-	return fmt.Sprintf("%dh%02dm", m/60, m%60)
 }

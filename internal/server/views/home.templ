@@ -1,8 +1,22 @@
 package views
 
+import (
+	"time"
+
+	"github.com/espcaa/sablier/internal/credit"
+)
+
 type Me struct {
-	Name   string
-	APIKey string
+	Name     string
+	SlackID  string // can be empty cause an hcauth account doesn't always have a slack id
+	APIKey   string
+	Today    time.Duration
+	Projects []ProjectTime
+}
+
+type ProjectTime struct {
+	Name string
+	Time time.Duration
 }
 
 templ layout(title string) {
@@ -26,6 +40,16 @@ templ Home(me *Me) {
 			<p><a href="/auth/login">sign in with Hack Club</a></p>
 		} else {
 			<p>signed in as { me.Name }</p>
+			<h2>today: { credit.Format(me.Today) }</h2>
+			if len(me.Projects) == 0 {
+				<p>nothing tracked today yet</p>
+			} else {
+				<ul>
+					for _, p := range me.Projects {
+						<li>{ credit.Format(p.Time) } { p.Name }</li>
+					}
+				</ul>
+			}
 			<p>api key: <code>{ me.APIKey }</code></p>
 			<p>run <code>sablier login</code> and paste it.</p>
 			<form method="post" action="/auth/logout">

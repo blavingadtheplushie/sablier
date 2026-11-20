@@ -9,18 +9,6 @@ import (
 	"github.com/espcaa/sablier/internal/credit"
 )
 
-func TestDur(t *testing.T) {
-	cases := map[time.Duration]string{
-		0: "0m", 29 * time.Second: "0m", 27*time.Minute + 51*time.Second: "28m",
-		time.Hour: "1h00m", 65 * time.Minute: "1h05m",
-	}
-	for d, want := range cases {
-		if got := dur(d); got != want {
-			t.Errorf("dur(%s) = %s, want %s", d, got, want)
-		}
-	}
-}
-
 func TestPrintReport(t *testing.T) {
 	t0 := time.Date(2026, 11, 19, 17, 0, 0, 0, time.UTC)
 	r := credit.Report{

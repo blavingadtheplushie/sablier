@@ -187,3 +187,15 @@ func TestTypingAfterLongTrip(t *testing.T) {
 	// [0,20] before leaving + [10m, 10m10s+2m] after
 	check(t, Compute(s.events, Default, at(mins(30))).Credited, 20*time.Second+130*time.Second)
 }
+
+func TestFormat(t *testing.T) {
+	cases := map[time.Duration]string{
+		0: "0m", 29 * time.Second: "0m", 27*time.Minute + 51*time.Second: "28m",
+		time.Hour: "1h00m", 65 * time.Minute: "1h05m",
+	}
+	for d, want := range cases {
+		if got := Format(d); got != want {
+			t.Errorf("Format(%s) = %s, want %s", d, got, want)
+		}
+	}
+}

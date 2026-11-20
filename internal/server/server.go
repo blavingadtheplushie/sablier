@@ -61,11 +61,18 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) home(w http.ResponseWriter, r *http.Request) {
-	var me *views.Me
-	if u := s.currentUser(r); u != nil {
-		me = &views.Me{Name: u.Name, APIKey: u.ApiKey}
+	u := s.currentUser(r)
+	if u == nil {
+		views.Home(nil).Render(r.Context(), w)
+		return
 	}
-	views.Home(me).Render(r.Context(), w)
+	total, projects, err := s.today(r.Context(), u.ID, time.Now())
+	if err != nil {
+		log.Print(err)
+		http.Error(w, "couldn't load today", http.StatusInternalServerError)
+		return
+	}
+	views.Home(&views.Me{Name: u.Name, SlackID: u.SlackID.String, APIKey: u.ApiKey, Today: total, Projects: projects}).Render(r.Context(), w)
 }
 
 // serves until ctx is done, then shuts down gracefully
