@@ -33,7 +33,8 @@ func newTodayCmd() *cobra.Command {
 
 			now := time.Now()
 			midnight := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-			events, err := s.Between(cmd.Context(), midnight, now)
+			// the end is exclusive, so events from this very millisecond need the +1ms
+			events, err := s.Between(cmd.Context(), midnight, now.Add(time.Millisecond))
 			if err != nil {
 				return err
 			}

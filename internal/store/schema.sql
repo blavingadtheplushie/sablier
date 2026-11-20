@@ -25,3 +25,6 @@ CREATE TABLE IF NOT EXISTS session_state (
     data       TEXT    NOT NULL, -- json
     updated_at INTEGER NOT NULL  -- unix ms
 );
+
+-- left over in databases from before project ids were readable
+DROP TABLE IF EXISTS projects;
