@@ -163,48 +163,6 @@ func (q *Queries) PendingEvents(ctx context.Context, limit int64) ([]Event, erro
 	return items, nil
 }
 
-const projects = `-- name: Projects :many
-SELECT id, root FROM projects
-`
-
-func (q *Queries) Projects(ctx context.Context) ([]Project, error) {
-	rows, err := q.db.QueryContext(ctx, projects)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Project
-	for rows.Next() {
-		var i Project
-		if err := rows.Scan(&i.ID, &i.Root); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const putProject = `-- name: PutProject :exec
-INSERT INTO projects (id, root) VALUES (?, ?)
-ON CONFLICT (id) DO NOTHING
-`
-
-type PutProjectParams struct {
-	ID   string
-	Root string
-}
-
-func (q *Queries) PutProject(ctx context.Context, arg PutProjectParams) error {
-	_, err := q.db.ExecContext(ctx, putProject, arg.ID, arg.Root)
-	return err
-}
-
 const putSessionState = `-- name: PutSessionState :exec
 INSERT INTO session_state (session_id, data, updated_at) VALUES (?, ?, ?)
 ON CONFLICT (session_id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at

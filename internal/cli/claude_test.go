@@ -3,12 +3,14 @@ package cli
 import (
 	"bytes"
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/espcaa/sablier/internal/event"
 	"github.com/espcaa/sablier/internal/launcher"
+	"github.com/espcaa/sablier/internal/project"
 	"github.com/espcaa/sablier/internal/store"
 )
 
@@ -49,8 +51,8 @@ func TestRecorder(t *testing.T) {
 		t.Fatalf("bad focus event: %+v", f)
 	}
 
-	names, _ := s.Projects(ctx)
-	if names[e.ProjectID] == "" {
-		t.Fatal("project name not recorded")
+	cwd, _ := os.Getwd()
+	if e.ProjectID != project.Detect(cwd) {
+		t.Fatalf("project %q, want the launch folder's", e.ProjectID)
 	}
 }

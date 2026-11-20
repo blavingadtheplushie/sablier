@@ -19,7 +19,7 @@ func TestTodayEndToEnd(t *testing.T) {
 	if err := root.Execute(); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out.String(), "1 actions") || !strings.Contains(out.String(), "/tmp") {
+	if !strings.Contains(out.String(), "1 actions") || !strings.Contains(out.String(), "tmp") {
 		t.Errorf("unexpected output:\n%s", out.String())
 	}
 }

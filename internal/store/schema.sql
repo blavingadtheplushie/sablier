@@ -25,9 +25,3 @@ CREATE TABLE IF NOT EXISTS session_state (
     data       TEXT    NOT NULL, -- json
     updated_at INTEGER NOT NULL  -- unix ms
 );
-
--- local only, never uploaded: lets the cli show names for hashed project ids
-CREATE TABLE IF NOT EXISTS projects (
-    id   TEXT PRIMARY KEY,
-    root TEXT NOT NULL
-);

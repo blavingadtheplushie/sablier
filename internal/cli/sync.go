@@ -10,7 +10,9 @@ import (
 
 	"github.com/espcaa/sablier/internal/api"
 	"github.com/espcaa/sablier/internal/config"
+	"github.com/espcaa/sablier/internal/event"
 	"github.com/espcaa/sablier/internal/paths"
+	"github.com/espcaa/sablier/internal/project"
 	"github.com/espcaa/sablier/internal/store"
 	"github.com/spf13/cobra"
 )
@@ -50,14 +52,6 @@ func syncEvents(ctx context.Context, s *store.Store, client *api.Client, out io.
 	if err != nil {
 		return err
 	}
-	roots, err := s.Projects(ctx)
-	if err != nil {
-		return err
-	}
-	var projects []api.Project
-	for id, root := range roots {
-		projects = append(projects, api.Project{ID: id, Name: filepath.Base(root)})
-	}
 
 	var total api.Result
 	for {
@@ -68,14 +62,13 @@ func syncEvents(ctx context.Context, s *store.Store, client *api.Client, out io.
 		if len(pending) == 0 {
 			break
 		}
-		res, err := client.Upload(ctx, api.Batch{InstallID: install, Events: pending, Projects: projects})
+		res, err := client.Upload(ctx, api.Batch{InstallID: install, Events: pending, Projects: projectsOf(pending)})
 		if errors.Is(err, api.ErrUnauthorized) {
 			return errors.New("api key rejected, run sablier login again")
 		}
 		if err != nil {
 			return err
 		}
-		projects = nil // sent once per sync
 		if err := s.MarkUploaded(ctx, pending[len(pending)-1].Seq, time.Now()); err != nil {
 			return err
 		}
@@ -92,4 +85,20 @@ func syncEvents(ctx context.Context, s *store.Store, client *api.Client, out io.
 		fmt.Fprintf(out, "synced %d events\n", total.Accepted)
 	}
 	return nil
+}
+
+// display names for the projects in a batch
+func projectsOf(events []event.Event) []api.Project {
+	seen := map[string]bool{}
+	var out []api.Project
+	for _, e := range events {
+		if e.ProjectID == "" || seen[e.ProjectID] {
+			continue
+		}
+		seen[e.ProjectID] = true
+		if name := project.Name(e.ProjectID); project.ValidName(name) {
+			out = append(out, api.Project{ID: e.ProjectID, Name: name})
+		}
+	}
+	return out
 }

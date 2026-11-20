@@ -37,17 +37,13 @@ func newTodayCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			names, err := s.Projects(cmd.Context())
-			if err != nil {
-				return err
-			}
-			printReport(cmd.OutOrStdout(), credit.Compute(events, credit.Default, now), names)
+			printReport(cmd.OutOrStdout(), credit.Compute(events, credit.Default, now))
 			return nil
 		},
 	}
 }
 
-func printReport(w io.Writer, r credit.Report, names map[string]string) {
+func printReport(w io.Writer, r credit.Report) {
 	if r.Actions == 0 {
 		fmt.Fprintln(w, "nothing tracked today")
 		return
@@ -62,19 +58,15 @@ func printReport(w io.Writer, r credit.Report, names map[string]string) {
 	}
 	sort.Slice(ids, func(i, j int) bool { return r.ByProject[ids[i]] > r.ByProject[ids[j]] })
 	for _, id := range ids {
-		fmt.Fprintf(w, "  %-8s %s\n", credit.Format(r.ByProject[id]), projectName(id, names))
+		fmt.Fprintf(w, "  %-8s %s\n", credit.Format(r.ByProject[id]), projectLabel(id))
 	}
 }
 
-func projectName(id string, names map[string]string) string {
-	root, ok := names[id]
-	if !ok {
-		if id == "" {
-			return "(no project)"
-		}
-		return "(unknown " + id[:min(8, len(id))] + ")"
+func projectLabel(id string) string {
+	if id == "" {
+		return "(no project)"
 	}
-	return tilde(root)
+	return id
 }
 
 // shortens paths under the home dir to ~/...

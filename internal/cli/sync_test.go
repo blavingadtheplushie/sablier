@@ -46,12 +46,11 @@ func TestSync(t *testing.T) {
 	n := api.MaxBatch + 3 // two batches
 	for i := range n {
 		e, _ := event.New(event.InputTick, time.Now().Add(time.Duration(i)*time.Second), event.InputTickData{Keys: 1})
-		e.ProjectID = "p1"
+		e.ProjectID = "github.com/espcaa/sablier"
 		if _, err := s.Append(ctx, e); err != nil {
 			t.Fatal(err)
 		}
 	}
-	s.Update(ctx, func(tx *store.Tx) error { return tx.PutProject(ctx, "p1", "/Users/alice/projects/sablier") })
 
 	fake := &fakeServer{}
 	srv := httptest.NewServer(fake)
@@ -72,8 +71,8 @@ func TestSync(t *testing.T) {
 	if len(b.InstallID) != 36 || len(b.Projects) != 1 || b.Projects[0].Name != "sablier" {
 		t.Fatalf("first batch: install %q, projects %+v", b.InstallID, b.Projects)
 	}
-	if fake.batches[1].InstallID != b.InstallID || len(fake.batches[1].Projects) != 0 {
-		t.Fatal("second batch should keep the install and skip projects")
+	if fake.batches[1].InstallID != b.InstallID || len(fake.batches[1].Projects) != 1 {
+		t.Fatal("second batch should keep the install and name its projects")
 	}
 
 	out.Reset()

@@ -89,11 +89,12 @@ func TestIngestRejects(t *testing.T) {
 	}
 
 	cases := map[string]api.Batch{
-		"bad install":  {InstallID: "nope", Events: []event.Event{ev(1)}},
-		"unknown kind": {InstallID: installA, Events: []event.Event{unknown}},
-		"no seq":       {InstallID: installA, Events: []event.Event{noSeq}},
-		"too many":     {InstallID: installA, Events: tooMany},
-		"path as name": {InstallID: installA, Events: []event.Event{ev(1)}, Projects: []api.Project{{ID: "p1", Name: "/Users/alice/sablier"}}},
+		"bad install":        {InstallID: "nope", Events: []event.Event{ev(1)}},
+		"unknown kind":       {InstallID: installA, Events: []event.Event{unknown}},
+		"no seq":             {InstallID: installA, Events: []event.Event{noSeq}},
+		"too many":           {InstallID: installA, Events: tooMany},
+		"control char in id": {InstallID: installA, Events: []event.Event{ev(1)}, Projects: []api.Project{{ID: "a\nb", Name: "ab"}}},
+		"path as name":       {InstallID: installA, Events: []event.Event{ev(1)}, Projects: []api.Project{{ID: "p1", Name: "/Users/alice/sablier"}}},
 	}
 	for name, b := range cases {
 		if rec := post(h, "sab_a", b); rec.Code != http.StatusBadRequest {
@@ -105,17 +106,5 @@ func TestIngestRejects(t *testing.T) {
 	rec := post(h, "sab_b", api.Batch{InstallID: installA, Events: []event.Event{ev(1)}})
 	if rec.Code != 200 {
 		t.Fatalf("install was claimed by a rejected batch: %d %s", rec.Code, rec.Body)
-	}
-}
-
-func TestValidProjectName(t *testing.T) {
-	for name, want := range map[string]bool{
-		"sablier": true, "my project": true, "web-app_2": true, "café": true, ".dotfiles": true,
-		"/a/b/sablier": false, "a/b": false, `C:\code\sablier`: false, "": false, ".": false, "..": false,
-		"tab\there": false, "new\nline": false, strings.Repeat("a", 201): false,
-	} {
-		if got := validProjectName(name); got != want {
-			t.Errorf("validProjectName(%q) = %v, want %v", name, got, want)
-		}
 	}
 }

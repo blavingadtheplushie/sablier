@@ -72,11 +72,8 @@ func newRecorder(ctx context.Context, runID string, warn io.Writer) *recorder {
 		return r
 	}
 
-	if salt, err := r.s.Salt(ctx); err == nil {
-		if cwd, err := os.Getwd(); err == nil {
-			r.project = project.ID(salt, cwd)
-			r.s.Update(ctx, func(tx *store.Tx) error { return tx.PutProject(ctx, r.project, project.Root(cwd)) })
-		}
+	if cwd, err := os.Getwd(); err == nil {
+		r.project = project.Detect(cwd)
 	}
 	return r
 }

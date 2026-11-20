@@ -35,12 +35,7 @@ func Record(ctx context.Context, s *store.Store, raw []byte, now time.Time, sess
 			}
 		}
 
-		pid := project.ID(salt, h.Cwd)
-		if pid != "" {
-			if err := tx.PutProject(ctx, pid, project.Root(h.Cwd)); err != nil {
-				return err
-			}
-		}
+		pid := project.Detect(h.Cwd)
 
 		st, events := Map(st, Input{Hook: h, Now: now, Salt: salt, ProjectID: pid, Session: session})
 

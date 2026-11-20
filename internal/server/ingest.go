@@ -10,6 +10,7 @@ import (
 
 	"github.com/espcaa/sablier/internal/api"
 	"github.com/espcaa/sablier/internal/event"
+	"github.com/espcaa/sablier/internal/project"
 	"github.com/espcaa/sablier/internal/server/db/sqlc"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -37,7 +38,7 @@ func (s *Server) ingest(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	for _, p := range b.Projects {
-		if p.ID == "" || !validProjectName(p.Name) {
+		if !validProjectID.MatchString(p.ID) || !project.ValidName(p.Name) {
 			writeError(w, http.StatusBadRequest, fmt.Sprintf("project %q: name must be a folder name, not a path", p.ID))
 			return
 		}
@@ -124,9 +125,4 @@ func validate(e event.Event) error {
 	return nil
 }
 
-// a folder name and nothing else: no slashes, no control characters
-var folderName = regexp.MustCompile(`^[^/\\\x00-\x1f\x7f]{1,200}$`)
-
-func validProjectName(name string) bool {
-	return folderName.MatchString(name) && name != "." && name != ".."
-}
+var validProjectID = regexp.MustCompile(`^[^\x00-\x1f\x7f]{1,300}$`)

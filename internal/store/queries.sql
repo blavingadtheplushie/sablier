@@ -32,10 +32,3 @@ SELECT data FROM session_state WHERE session_id = ?;
 -- name: PutSessionState :exec
 INSERT INTO session_state (session_id, data, updated_at) VALUES (?, ?, ?)
 ON CONFLICT (session_id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at;
-
--- name: PutProject :exec
-INSERT INTO projects (id, root) VALUES (?, ?)
-ON CONFLICT (id) DO NOTHING;
-
--- name: Projects :many
-SELECT * FROM projects;
