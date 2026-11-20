@@ -36,6 +36,10 @@ func New(cfg Config, db database, q *sqlc.Queries, auth *hcauth.Client) http.Han
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID, middleware.Logger, middleware.Recoverer)
 
+	site := http.FileServer(http.Dir(cfg.SiteDir))
+	r.Get("/tokens.css", site.ServeHTTP)
+	r.Get("/fonts/*", site.ServeHTTP)
+
 	r.Get("/health", s.health)
 	r.Get("/", s.home)
 	r.Get("/auth/login", s.login)
