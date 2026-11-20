@@ -3,6 +3,9 @@ import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
 
 export default defineConfig({
+  // make dev serves pages through the go server on :8080, but vite's live
+  // reload socket breaks behind that proxy, so it connects to astro directly
+  vite: { server: { ws: { clientPort: 4321 } } },
   integrations: [
     starlight({
       title: "sablier",

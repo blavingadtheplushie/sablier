@@ -34,23 +34,23 @@ func New(cfg Config, db database, q *sqlc.Queries, auth *hcauth.Client) http.Han
 	s := &Server{cfg: cfg, db: db, q: q, auth: auth}
 
 	r := chi.NewRouter()
-	r.Use(middleware.RequestID, middleware.Logger, middleware.Recoverer)
+	r.Use(middleware.RequestID, middleware.Recoverer)
 
-	site := http.FileServer(http.Dir(cfg.SiteDir))
-	r.Get("/tokens.css", site.ServeHTTP)
-	r.Get("/fonts/*", site.ServeHTTP)
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.Logger)
+		r.Get("/health", s.health)
+		r.Get("/app", s.app)
+		r.Get("/auth/login", s.login)
+		r.Get("/auth/callback", s.callback)
+		r.Post("/auth/logout", s.logout)
 
-	r.Get("/health", s.health)
-	r.Get("/", s.home)
-	r.Get("/auth/login", s.login)
-	r.Get("/auth/callback", s.callback)
-	r.Post("/auth/logout", s.logout)
-
-	r.Route("/v1", func(r chi.Router) {
-		r.Use(s.requireKey)
-		r.Get("/me", s.me)
-		r.Post("/events", s.ingest)
+		r.Route("/v1", func(r chi.Router) {
+			r.Use(s.requireKey)
+			r.Get("/me", s.me)
+			r.Post("/events", s.ingest)
+		})
 	})
+	r.NotFound(siteHandler(cfg.SiteDir, cfg.SiteProxy).ServeHTTP)
 	return r
 }
 
@@ -64,10 +64,10 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("ok\n"))
 }
 
-func (s *Server) home(w http.ResponseWriter, r *http.Request) {
+func (s *Server) app(w http.ResponseWriter, r *http.Request) {
 	u := s.currentUser(r)
 	if u == nil {
-		views.Home(nil).Render(r.Context(), w)
+		http.Redirect(w, r, "/auth/login", http.StatusFound)
 		return
 	}
 	total, projects, err := s.today(r.Context(), u.ID, time.Now())
@@ -76,7 +76,7 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "couldn't load today", http.StatusInternalServerError)
 		return
 	}
-	views.Home(&views.Me{Name: u.Name, SlackID: u.SlackID.String, APIKey: u.ApiKey, Today: total, Projects: projects}).Render(r.Context(), w)
+	views.App(views.Me{Name: u.Name, SlackID: u.SlackID.String, APIKey: u.ApiKey, Today: total, Projects: projects}).Render(r.Context(), w)
 }
 
 // serves until ctx is done, then shuts down gracefully

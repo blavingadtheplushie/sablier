@@ -22,6 +22,10 @@ const (
 )
 
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
+	if s.currentUser(r) != nil {
+		http.Redirect(w, r, "/app", http.StatusFound)
+		return
+	}
 	if s.auth == nil {
 		http.Error(w, "sign in is not configured", http.StatusServiceUnavailable)
 		return
@@ -89,7 +93,7 @@ func (s *Server) callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.SetCookie(w, s.cookie(sessionCookie, session, "/", sessionTTL))
-	http.Redirect(w, r, "/", http.StatusFound)
+	http.Redirect(w, r, "/app", http.StatusFound)
 }
 
 func (s *Server) logout(w http.ResponseWriter, r *http.Request) {

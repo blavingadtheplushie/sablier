@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/espcaa/sablier/internal/credit"
+	"strings"
 )
 
 type Me struct {
@@ -37,59 +38,51 @@ templ layout(title string) {
 	</html>
 }
 
-templ Home(me *Me) {
+templ App(me Me) {
 	@layout("sablier") {
-		if me == nil {
-			<h1 class="name">sablier</h1>
-			<div class="buttons">
-				<a class="button" href="/auth/login">Sign in with Hack Club</a>
-			</div>
+		<header class="top">
+			<a class="small-name" href="/">sablier</a>
+			<form method="post" action="/auth/logout">
+				<button class="button quiet" type="submit">Sign out</button>
+			</form>
+		</header>
+		<p class="muted">Signed in as { strings.Split(me.Name, " ")[0] }</p>
+		<p class="today">
+			<span class="total">{ credit.Format(me.Today) }</span>
+			<span class="muted">today</span>
+		</p>
+		if len(me.Projects) == 0 {
+			<p class="muted">Nothing tracked today yet. Start your agent through sablier and it shows up here.</p>
 		} else {
-			<header class="top">
-				<a class="small-name" href="/">sablier</a>
-				<form method="post" action="/auth/logout">
-					<button class="button quiet" type="submit">Sign out</button>
-				</form>
-			</header>
-			<p class="muted">Signed in as { me.Name }</p>
-			<p class="today">
-				<span class="total">{ credit.Format(me.Today) }</span>
-				<span class="muted">today</span>
-			</p>
-			if len(me.Projects) == 0 {
-				<p class="muted">Nothing tracked today yet. Start your agent through sablier and it shows up here.</p>
-			} else {
-				<ul class="projects">
-					for _, p := range me.Projects {
-						<li>
-							<span>{ p.Name }</span>
-							<span class="time">{ credit.Format(p.Time) }</span>
-						</li>
-					}
-				</ul>
-			}
-			<section class="key">
-				<h2>API key</h2>
-				<div class="copy">
-					<code>{ me.APIKey }</code>
-					<button class="button" type="button" data-copy={ me.APIKey }>Copy</button>
-				</div>
-				<p class="muted">Run <code>sablier login</code> and paste it.</p>
-			</section>
-			<script>
-				for (const b of document.querySelectorAll("[data-copy]")) {
-					b.addEventListener("click", async () => {
-						try {
-							await navigator.clipboard.writeText(b.dataset.copy)
-							b.textContent = "Copied"
-						} catch {
-							b.textContent = "Couldn't copy"
-						}
-						setTimeout(() => (b.textContent = "Copy"), 1500)
-					})
+			<ul class="projects">
+				for _, p := range me.Projects {
+					<li>
+						<span>{ p.Name }</span>
+						<span class="time">{ credit.Format(p.Time) }</span>
+					</li>
 				}
-			</script>
+			</ul>
 		}
+		<section class="key">
+			<h2>API key</h2>
+			<div class="copy">
+				<code>{ me.APIKey }</code>
+				<button class="button" type="button" data-copy={ me.APIKey }>Copy</button>
+			</div>
+		</section>
+		<script>
+			for (const b of document.querySelectorAll("[data-copy]")) {
+				b.addEventListener("click", async () => {
+					try {
+						await navigator.clipboard.writeText(b.dataset.copy)
+						b.textContent = "Copied"
+					} catch {
+						b.textContent = "Couldn't copy"
+					}
+					setTimeout(() => (b.textContent = "Copy"), 1500)
+				})
+			}
+		</script>
 	}
 }
 
@@ -121,19 +114,6 @@ templ styles() {
 		}
 		.muted {
 			color: var(--color-muted);
-		}
-		.name {
-			font-weight: 600;
-			font-style: italic;
-			font-size: clamp(3.5rem, 13vw, 9rem);
-			letter-spacing: -0.04em;
-			line-height: 0.9;
-		}
-		.buttons {
-			display: flex;
-			flex-wrap: wrap;
-			justify-content: center;
-			gap: 0.375rem;
 		}
 		.button {
 			font: inherit;

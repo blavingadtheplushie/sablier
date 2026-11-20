@@ -68,6 +68,18 @@ func get(t *testing.T, c *http.Client, u string) (int, string) {
 	return resp.StatusCode, string(b)
 }
 
+// where u redirects to, without following it
+func redirect(t *testing.T, jar http.CookieJar, u string) string {
+	t.Helper()
+	c := &http.Client{Jar: jar, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	resp, err := c.Get(u)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	return resp.Header.Get("Location")
+}
+
 func TestSignInFlow(t *testing.T) {
 	pool := testPool(t)
 	hc := fakeHackClub(t)
@@ -82,13 +94,13 @@ func TestSignInFlow(t *testing.T) {
 	jar, _ := cookiejar.New(nil)
 	browser := &http.Client{Jar: jar}
 
-	if _, body := get(t, browser, app.URL+"/"); !strings.Contains(body, "sign in with Hack Club") {
-		t.Fatalf("signed out page: %s", body)
+	if to := redirect(t, jar, app.URL+"/app"); to != "/auth/login" {
+		t.Fatalf("signed out /app redirects to %q", to)
 	}
 
-	// login -> fake hack club -> callback -> home
+	// login -> fake hack club -> callback -> /app
 	code, body := get(t, browser, app.URL+"/auth/login")
-	if code != 200 || !strings.Contains(body, "signed in as Alice B") || !strings.Contains(body, "sab_") {
+	if code != 200 || !strings.Contains(body, "Signed in as Alice B") || !strings.Contains(body, "sab_") {
 		t.Fatalf("after sign in (%d): %s", code, body)
 	}
 
@@ -103,10 +115,9 @@ func TestSignInFlow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, _ := io.ReadAll(resp.Body)
 	resp.Body.Close()
-	if !strings.Contains(string(b), "sign in with Hack Club") {
-		t.Fatalf("after sign out: %s", b)
+	if to := redirect(t, jar, app.URL+"/app"); to != "/auth/login" {
+		t.Fatalf("after sign out /app redirects to %q", to)
 	}
 }
 
