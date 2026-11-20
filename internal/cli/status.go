@@ -7,6 +7,7 @@ import (
 	"io"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/espcaa/sablier/internal/api"
@@ -64,16 +65,23 @@ func printStatus(ctx context.Context, w io.Writer, c config.Config, s *store.Sto
 	}
 	fmt.Fprintf(w, "%d events waiting · last sync %s\n\n", pending, ago(last, now))
 
+	var names []string
+	found := false
 	for _, h := range harnesses {
+		names = append(names, h.bin)
 		path, err := exec.LookPath(h.bin)
 		if err != nil {
-			path = h.bin + " not found"
+			continue
 		}
-		hooks, err := s.LastEventFrom(ctx, h.id, event.SourceAdapter)
+		found = true
+		last, err := s.LastEventFrom(ctx, h.id, event.SourceAdapter)
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(w, "%s  %s · last event %s\n", h.id, tilde(path), ago(hooks, now))
+		fmt.Fprintf(w, "%s  %s · last event %s\n", h.id, tilde(path), ago(last, now))
+	}
+	if !found {
+		fmt.Fprintf(w, "no supported harness found (%s)\n", strings.Join(names, ", "))
 	}
 	return nil
 }
