@@ -48,32 +48,9 @@ func syncEvents(ctx context.Context, s *store.Store, client *api.Client, out io.
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	install, err := s.InstallID(ctx)
+	total, err := upload(ctx, s, client)
 	if err != nil {
 		return err
-	}
-
-	var total api.Result
-	for {
-		pending, err := s.Pending(ctx, api.MaxBatch)
-		if err != nil {
-			return err
-		}
-		if len(pending) == 0 {
-			break
-		}
-		res, err := client.Upload(ctx, api.Batch{InstallID: install, Events: pending, Projects: projectsOf(pending)})
-		if errors.Is(err, api.ErrUnauthorized) {
-			return errors.New("api key rejected, run sablier login again")
-		}
-		if err != nil {
-			return err
-		}
-		if err := s.MarkUploaded(ctx, pending[len(pending)-1].Seq, time.Now()); err != nil {
-			return err
-		}
-		total.Accepted += res.Accepted
-		total.Duplicates += res.Duplicates
 	}
 
 	switch {
@@ -85,6 +62,36 @@ func syncEvents(ctx context.Context, s *store.Store, client *api.Client, out io.
 		fmt.Fprintf(out, "synced %d events\n", total.Accepted)
 	}
 	return nil
+}
+
+// sends every pending event in batches, marking each batch once the server has it
+func upload(ctx context.Context, s *store.Store, client *api.Client) (api.Result, error) {
+	var total api.Result
+	install, err := s.InstallID(ctx)
+	if err != nil {
+		return total, err
+	}
+	for {
+		pending, err := s.Pending(ctx, api.MaxBatch)
+		if err != nil {
+			return total, err
+		}
+		if len(pending) == 0 {
+			return total, nil
+		}
+		res, err := client.Upload(ctx, api.Batch{InstallID: install, Events: pending, Projects: projectsOf(pending)})
+		if errors.Is(err, api.ErrUnauthorized) {
+			return total, errors.New("api key rejected, run sablier login again")
+		}
+		if err != nil {
+			return total, err
+		}
+		if err := s.MarkUploaded(ctx, pending[len(pending)-1].Seq, time.Now()); err != nil {
+			return total, err
+		}
+		total.Accepted += res.Accepted
+		total.Duplicates += res.Duplicates
+	}
 }
 
 // display names for the projects in a batch

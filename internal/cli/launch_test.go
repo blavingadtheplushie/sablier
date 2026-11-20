@@ -21,7 +21,7 @@ func TestRecorder(t *testing.T) {
 	now := time.Now()
 
 	var warn bytes.Buffer
-	rec := newRecorder(ctx, "r1", &warn)
+	rec := newRecorder(ctx, "some-harness", "r1", &warn)
 	rec.tick(launcher.Tick{At: now, Window: 10 * time.Second, Keys: 7, Mouse: 3, Pasted: true})
 	rec.focus(false, now.Add(time.Second))
 	rec.close()
@@ -39,7 +39,7 @@ func TestRecorder(t *testing.T) {
 		t.Fatalf("got %d events, %v", len(events), err)
 	}
 	e := events[0]
-	if e.Kind != event.InputTick || e.SessionID != "run:r1" || e.Source != event.SourceLauncher || e.ProjectID == "" {
+	if e.Kind != event.InputTick || e.SessionID != "run:r1" || e.Harness != "some-harness" || e.Source != event.SourceLauncher || e.ProjectID == "" {
 		t.Fatalf("bad envelope: %+v", e)
 	}
 	p, _ := e.Payload()
