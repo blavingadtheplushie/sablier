@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"errors"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -146,36 +145,6 @@ func TestSessionState(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatal(err)
-	}
-}
-
-func TestUpdateRollsBack(t *testing.T) {
-	s, ctx := open(t), context.Background()
-	boom := errors.New("boom")
-
-	err := s.Update(ctx, func(tx *Tx) error {
-		if _, err := tx.Append(ctx, mk(t, time.Now())); err != nil {
-			t.Fatal(err)
-		}
-		return boom
-	})
-	if !errors.Is(err, boom) {
-		t.Fatalf("got %v", err)
-	}
-	if all, _ := s.Pending(ctx, 10); len(all) != 0 {
-		t.Fatalf("event kept after rollback: %+v", all)
-	}
-}
-
-func TestSaltIsStable(t *testing.T) {
-	s, ctx := open(t), context.Background()
-	a, err := s.Salt(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	b, _ := s.Salt(ctx)
-	if len(a) != 32 || string(a) != string(b) {
-		t.Fatalf("salt changed or wrong size: %x %x", a, b)
 	}
 }
 

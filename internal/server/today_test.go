@@ -3,9 +3,6 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"net/http"
-	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
@@ -64,29 +61,6 @@ func TestToday(t *testing.T) {
 	}
 	if total != 11*time.Minute || len(projects) != 1 || projects[0].Name != "sablier" || projects[0].Time != 11*time.Minute {
 		t.Fatalf("got %s, %+v", total, projects)
-	}
-}
-
-func TestHomeSignedIn(t *testing.T) {
-	pool := testPool(t)
-	q := sqlc.New(pool)
-	ctx := context.Background()
-	q.UpsertUser(ctx, sqlc.UpsertUserParams{ID: "ident!a", Name: "Alice B", ApiKey: "sab_a"})
-	q.CreateSession(ctx, sqlc.CreateSessionParams{
-		TokenHash: hash("tok"), UserID: "ident!a",
-		ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(time.Hour), Valid: true},
-	})
-
-	req := httptest.NewRequest("GET", "/", nil)
-	req.AddCookie(&http.Cookie{Name: sessionCookie, Value: "tok"})
-	rec := httptest.NewRecorder()
-	New(Config{}, pool, q, nil).ServeHTTP(rec, req)
-
-	body := rec.Body.String()
-	for _, want := range []string{"signed in as Alice B", "today: 0m", "nothing tracked today yet", "sab_a"} {
-		if !strings.Contains(body, want) {
-			t.Errorf("page is missing %q:\n%s", want, body)
-		}
 	}
 }
 

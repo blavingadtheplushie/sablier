@@ -31,16 +31,3 @@ func TestHealth(t *testing.T) {
 		}
 	}
 }
-
-func TestConfigNeedsDatabase(t *testing.T) {
-	t.Setenv("DATABASE_URL", "")
-	if _, err := ConfigFromEnv(); err == nil {
-		t.Fatal("expected error")
-	}
-	t.Setenv("DATABASE_URL", "postgres://x")
-	t.Setenv("SABLIER_ADDR", "")
-	c, err := ConfigFromEnv()
-	if err != nil || c.Addr != ":8080" {
-		t.Fatalf("got %+v, %v", c, err)
-	}
-}

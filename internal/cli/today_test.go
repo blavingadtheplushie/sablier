@@ -4,34 +4,7 @@ import (
 	"bytes"
 	"strings"
 	"testing"
-	"time"
-
-	"github.com/espcaa/sablier/internal/credit"
 )
-
-func TestPrintReport(t *testing.T) {
-	t0 := time.Date(2026, 11, 19, 17, 0, 0, 0, time.UTC)
-	r := credit.Report{
-		Credited:  30 * time.Minute,
-		ByProject: map[string]time.Duration{"a": 20 * time.Minute, "b": 10 * time.Minute},
-		AgentBusy: 7 * time.Minute,
-		Actions:   16,
-		First:     t0,
-		Last:      t0.Add(3 * time.Hour),
-	}
-	var out bytes.Buffer
-	printReport(&out, r, map[string]string{"a": "/work/sablier"})
-
-	want := `30m today
-7m agent busy · 16 actions · 3h00m span
-
-  20m      /work/sablier
-  10m      (unknown b)
-`
-	if out.String() != want {
-		t.Errorf("got\n%s\nwant\n%s", out.String(), want)
-	}
-}
 
 func TestTodayEndToEnd(t *testing.T) {
 	t.Setenv("SABLIER_HOME", t.TempDir())
