@@ -27,7 +27,7 @@ func runPipeTicks(t *testing.T, script, input string) (int, string, []Tick) {
 	defer ptmx.Close()
 	var out bytes.Buffer
 	var ticks []Tick
-	code, err := pipe(c, ptmx, strings.NewReader(input), &out, Options{
+	code, err := relay(ptmx, func() (int, error) { return exitCode(c.Wait()) }, strings.NewReader(input), &out, Options{
 		OnTick:  func(tk Tick) { ticks = append(ticks, tk) },
 		OnFocus: func(bool, time.Time) {},
 	})
