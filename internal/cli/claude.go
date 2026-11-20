@@ -21,7 +21,7 @@ func newClaudeCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runHarness(cmd, claude.Harness, "claude", args)
+			return exitWith(runHarness(cmd, harnessRun{harness: claude.Harness, binary: "claude", args: args}))
 		},
 	}
 }

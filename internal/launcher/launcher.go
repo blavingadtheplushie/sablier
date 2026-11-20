@@ -17,6 +17,7 @@ type Options struct {
 	RunID   string
 	OnTick  func(Tick) // input activity
 	OnFocus func(in bool, at time.Time)
+	Env     []string
 }
 
 const tickEvery = 10 * time.Second
@@ -35,7 +36,7 @@ func Run(name string, args []string, o Options) (int, error) {
 	}
 
 	c := exec.Command(path, args...)
-	c.Env = append(os.Environ(), "SABLIER_RUN_ID="+o.RunID)
+	c.Env = append(append(os.Environ(), o.Env...), "SABLIER_RUN_ID="+o.RunID)
 
 	if term.IsTerminal(int(os.Stdin.Fd())) && term.IsTerminal(int(os.Stdout.Fd())) {
 		return runTerminal(c, o)

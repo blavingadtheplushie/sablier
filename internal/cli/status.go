@@ -14,6 +14,7 @@ import (
 	"github.com/espcaa/sablier/internal/credit"
 	"github.com/espcaa/sablier/internal/event"
 	"github.com/espcaa/sablier/internal/harness/claude"
+	"github.com/espcaa/sablier/internal/harness/opencode"
 	"github.com/espcaa/sablier/internal/paths"
 	"github.com/espcaa/sablier/internal/store"
 	"github.com/spf13/cobra"
@@ -22,6 +23,7 @@ import (
 // harness id and the binary the launcher runs
 var harnesses = []struct{ id, bin string }{
 	{claude.Harness, "claude"},
+	{opencode.Harness, "opencode"},
 }
 
 func newStatusCmd() *cobra.Command {
@@ -69,7 +71,7 @@ func printStatus(ctx context.Context, w io.Writer, c config.Config, s *store.Sto
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(w, "%s  %s · hooks last ran %s\n", h.id, tilde(path), ago(hooks, now))
+		fmt.Fprintf(w, "%s  %s · last event %s\n", h.id, tilde(path), ago(hooks, now))
 	}
 	return nil
 }

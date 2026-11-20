@@ -17,27 +17,39 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type harnessRun struct {
+	harness, binary string
+	args, env       []string
+	watch           func(rec *recorder) (stop func())
+}
+
 // runs a harness binary through sablier, and does all the shiny things
-func runHarness(cmd *cobra.Command, harness, binary string, args []string) error {
+func runHarness(cmd *cobra.Command, h harnessRun) (int, error) {
 	id, err := launcher.NewRunID()
 	if err != nil {
-		return err
+		return 0, err
 	}
-	rec := newRecorder(context.Background(), harness, id, cmd.ErrOrStderr())
+	rec := newRecorder(context.Background(), h.harness, id, cmd.ErrOrStderr())
 	stopSync := startAutoSync(rec.s, syncEvery, cmd.ErrOrStderr())
+	stopWatch := func() {}
+	if h.watch != nil && rec.s != nil {
+		stopWatch = h.watch(rec)
+	}
 
 	start := time.Now()
-	code, err := launcher.Run(binary, args, launcher.Options{RunID: id, OnTick: rec.tick, OnFocus: rec.focus})
+	code, err := launcher.Run(h.binary, h.args, launcher.Options{RunID: id, Env: h.env, OnTick: rec.tick, OnFocus: rec.focus})
+	stopWatch()
 	stopSync() // before close, it uses the store
 	rec.checkAdapter(time.Since(start))
 	rec.close()
-	if err != nil {
-		return err
-	}
-	if code != 0 {
+	return code, err
+}
+
+func exitWith(code int, err error) error {
+	if err == nil && code != 0 {
 		os.Exit(code)
 	}
-	return nil
+	return err
 }
 
 func runSession(runID string) string { return "run:" + runID }
@@ -108,13 +120,25 @@ func (r *recorder) save(kind event.Kind, at time.Time, data any) {
 	}
 }
 
+// events from an adapter running in this process
+func (r *recorder) append(es []event.Event) {
+	for _, e := range es {
+		if _, err := r.s.Append(r.ctx, e); err != nil {
+			r.mu.Lock()
+			r.failed++
+			r.lastErr = err
+			r.mu.Unlock()
+		}
+	}
+}
+
 func (r *recorder) checkAdapter(ran time.Duration) {
 	if r.s == nil || ran < 10*time.Second {
 		return
 	}
 	n, err := r.s.CountSession(r.ctx, runSession(r.runID), event.SourceAdapter)
 	if err == nil && n == 0 {
-		fmt.Fprintf(r.warn, "sablier: %s's hooks didn't run, this session is missing prompts and turns\n", r.harness)
+		fmt.Fprintf(r.warn, "sablier: nothing came from %s besides input, this session is missing prompts and turns\n", r.harness)
 	}
 }
 

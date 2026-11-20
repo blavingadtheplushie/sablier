@@ -28,6 +28,7 @@ func NewRootCmd() *cobra.Command {
 		newVersionCmd(),
 		newHookCmd(),
 		newClaudeCmd(),
+		newOpencodeCmd(),
 		newTodayCmd(),
 		newLoginCmd(),
 		newSyncCmd(),
