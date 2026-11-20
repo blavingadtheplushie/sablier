@@ -36,7 +36,7 @@ func TestWithHooks(t *testing.T) {
 	if len(s.Hooks) != len(hookEvents) || strings.Join(rest, " ") != "-p hi" {
 		t.Fatalf("got %+v, rest %q", s, rest)
 	}
-	if got := s.Hooks["UserPromptSubmit"][0].Hooks[0]; got.Command != `'/Users/a b/it'\''s/sablier' hook` {
+	if got := s.Hooks["UserPromptSubmit"][0].Hooks[0]; got.Command != `'/Users/a b/it'\''s/sablier' hook claude` {
 		t.Fatalf("got %+v", got)
 	}
 }

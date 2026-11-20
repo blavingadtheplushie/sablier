@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
-	"runtime"
 	"strings"
+
+	"github.com/espcaa/sablier/internal/harness"
 )
 
 var hookEvents = []string{
@@ -38,7 +38,7 @@ func WithHooks(exe string, args []string) ([]string, error) {
 	if hooks == nil {
 		hooks = map[string]any{}
 	}
-	command := quote(exe) + " hook"
+	command := harness.Quote(exe) + " hook claude"
 	for _, ev := range hookEvents {
 		groups, _ := hooks[ev].([]any)
 		hooks[ev] = append(groups, map[string]any{
@@ -67,11 +67,4 @@ func readSettings(v string) (map[string]any, error) {
 		return nil, err
 	}
 	return m, nil
-}
-
-func quote(path string) string {
-	if runtime.GOOS == "windows" {
-		return `"` + filepath.ToSlash(path) + `"`
-	}
-	return "'" + strings.ReplaceAll(path, "'", `'\''`) + "'"
 }

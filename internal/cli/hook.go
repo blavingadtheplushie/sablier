@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/espcaa/sablier/internal/harness/claude"
+	"github.com/espcaa/sablier/internal/harness/codex"
 	"github.com/espcaa/sablier/internal/paths"
 	"github.com/espcaa/sablier/internal/store"
 	"github.com/spf13/cobra"
@@ -18,21 +19,36 @@ import (
 // never print to stdout (goes into claude's context), never exit non-zero (2 blocks claude)
 func newHookCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:    "hook",
-		Short:  "receive a claude code hook event (called by claude, not by you)",
+		Use:    "hook [claude|codex]",
+		Short:  "do not run this, for harnesses",
 		Hidden: true,
-		Args:   cobra.NoArgs,
+		Args:   cobra.MaximumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := runHook(cmd.Context(), cmd.InOrStdin(), time.Now()); err != nil {
+			name := "claude" // default mmmh
+			if len(args) == 1 {
+				name = args[0]
+			}
+			if err := runHook(cmd.Context(), name, cmd.InOrStdin(), time.Now()); err != nil {
 				fmt.Fprintln(cmd.ErrOrStderr(), "sablier hook:", err)
 			}
 		},
 	}
 }
 
-func runHook(ctx context.Context, r io.Reader, now time.Time) error {
+type recordFunc func(ctx context.Context, s *store.Store, raw []byte, now time.Time, session string) error
+
+var hookHarnesses = map[string]recordFunc{
+	"claude": claude.Record,
+	"codex":  codex.Record,
+}
+
+func runHook(ctx context.Context, name string, r io.Reader, now time.Time) error {
 	if ctx == nil {
 		ctx = context.Background()
+	}
+	record, ok := hookHarnesses[name]
+	if !ok {
+		return fmt.Errorf("unknown harness %q", name)
 	}
 	runID := os.Getenv("SABLIER_RUN_ID")
 	if runID == "" {
@@ -62,7 +78,7 @@ func runHook(ctx context.Context, r io.Reader, now time.Time) error {
 		return err
 	}
 	defer s.Close()
-	return claude.Record(ctx, s, raw, now, runSession(runID))
+	return record(ctx, s, raw, now, runSession(runID))
 }
 
 // contains prompt text, local only

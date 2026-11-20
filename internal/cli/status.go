@@ -14,6 +14,7 @@ import (
 	"github.com/espcaa/sablier/internal/credit"
 	"github.com/espcaa/sablier/internal/event"
 	"github.com/espcaa/sablier/internal/harness/claude"
+	"github.com/espcaa/sablier/internal/harness/codex"
 	"github.com/espcaa/sablier/internal/harness/opencode"
 	"github.com/espcaa/sablier/internal/paths"
 	"github.com/espcaa/sablier/internal/store"
@@ -24,6 +25,7 @@ import (
 var harnesses = []struct{ id, bin string }{
 	{claude.Harness, "claude"},
 	{opencode.Harness, "opencode"},
+	{codex.Harness, "codex"},
 }
 
 func newStatusCmd() *cobra.Command {
