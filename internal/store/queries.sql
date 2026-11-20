@@ -35,3 +35,12 @@ SELECT data FROM session_state WHERE session_id = ?;
 -- name: PutSessionState :exec
 INSERT INTO session_state (session_id, data, updated_at) VALUES (?, ?, ?)
 ON CONFLICT (session_id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at;
+
+-- name: SyncStatus :one
+SELECT
+    CAST(count(*) FILTER (WHERE uploaded_at IS NULL) AS INTEGER) AS pending,
+    CAST(COALESCE(max(uploaded_at), 0) AS INTEGER) AS last_upload
+FROM events;
+
+-- name: LastEventFrom :one
+SELECT CAST(COALESCE(max(ts), 0) AS INTEGER) FROM events WHERE harness = ? AND source = ?;

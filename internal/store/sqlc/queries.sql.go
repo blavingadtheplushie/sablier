@@ -123,6 +123,22 @@ func (q *Queries) InsertEvent(ctx context.Context, arg InsertEventParams) (int64
 	return seq, err
 }
 
+const lastEventFrom = `-- name: LastEventFrom :one
+SELECT CAST(COALESCE(max(ts), 0) AS INTEGER) FROM events WHERE harness = ? AND source = ?
+`
+
+type LastEventFromParams struct {
+	Harness string
+	Source  string
+}
+
+func (q *Queries) LastEventFrom(ctx context.Context, arg LastEventFromParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, lastEventFrom, arg.Harness, arg.Source)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const markUploaded = `-- name: MarkUploaded :exec
 UPDATE events
 SET uploaded_at = ?1
@@ -208,4 +224,23 @@ type SetMetaIfMissingParams struct {
 func (q *Queries) SetMetaIfMissing(ctx context.Context, arg SetMetaIfMissingParams) error {
 	_, err := q.db.ExecContext(ctx, setMetaIfMissing, arg.Key, arg.Value)
 	return err
+}
+
+const syncStatus = `-- name: SyncStatus :one
+SELECT
+    CAST(count(*) FILTER (WHERE uploaded_at IS NULL) AS INTEGER) AS pending,
+    CAST(COALESCE(max(uploaded_at), 0) AS INTEGER) AS last_upload
+FROM events
+`
+
+type SyncStatusRow struct {
+	Pending    int64
+	LastUpload int64
+}
+
+func (q *Queries) SyncStatus(ctx context.Context) (SyncStatusRow, error) {
+	row := q.db.QueryRowContext(ctx, syncStatus)
+	var i SyncStatusRow
+	err := row.Scan(&i.Pending, &i.LastUpload)
+	return i, err
 }

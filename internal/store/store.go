@@ -166,6 +166,25 @@ func (s *Store) CountSession(ctx context.Context, session string, source event.S
 	return s.q.CountSessionEvents(ctx, sqlc.CountSessionEventsParams{SessionID: session, Source: string(source)})
 }
 
+// pending count and when the last upload happened (zero if never)
+func (s *Store) SyncStatus(ctx context.Context) (int64, time.Time, error) {
+	r, err := s.q.SyncStatus(ctx)
+	return r.Pending, unixMilli(r.LastUpload), err
+}
+
+// zero if the harness never sent anything from that source
+func (s *Store) LastEventFrom(ctx context.Context, harness string, source event.Source) (time.Time, error) {
+	ms, err := s.q.LastEventFrom(ctx, sqlc.LastEventFromParams{Harness: harness, Source: string(source)})
+	return unixMilli(ms), err
+}
+
+func unixMilli(ms int64) time.Time {
+	if ms == 0 {
+		return time.Time{}
+	}
+	return time.UnixMilli(ms)
+}
+
 // events not uploaded yet, by seq
 func (s *Store) Pending(ctx context.Context, limit int64) ([]event.Event, error) {
 	rows, err := s.q.PendingEvents(ctx, limit)
