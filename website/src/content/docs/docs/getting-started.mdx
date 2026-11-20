@@ -1,0 +1,53 @@
+---
+title: Getting started
+description: Install sablier, sign in and track your first session!
+---
+
+import { Steps, Aside } from "@astrojs/starlight/components";
+
+<Steps>
+
+1. **Install sablier.** (You need go 1.27)
+
+   ```sh
+   go install github.com/espcaa/sablier/cmd/sablier@latest
+   ```
+
+2. **Sign in.** Sign in on sablier, then copy your api and run:
+
+   ```sh
+   sablier login
+   ```
+
+   It checks the key and saves it to `~/.sablier.cfg`.
+
+3. **Start your agent through sablier.** Use it exactly like you normally would:
+
+   ```sh
+   sablier claude
+   sablier opencode
+   sablier claude --continue
+   ```
+
+4. **Check it worked.**
+
+   ```sh
+   sablier status   # account, sync, and the last event from each agent
+   sablier today    # your time since midnight, per project
+   ```
+
+</Steps>
+
+<Aside type="tip">
+To never forget, alias your agent in your shell config!
+
+```sh
+alias claude='sablier claude'
+```
+
+</Aside>
+
+<Aside>
+  Not signed in? sablier still tracks everything locally, and uploads it all
+  once you run `sablier login`.
+</Aside>

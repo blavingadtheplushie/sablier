@@ -46,7 +46,7 @@ generate:
 	templ generate
 
 docs:
-	go run ./tools/gendocs -o docs/reference
+	go run ./tools/gendocs
 
 tidy:
 	go mod tidy

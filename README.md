@@ -12,5 +12,5 @@ go install github.com/espcaa/sablier/cmd/sablier@latest
 make build        # → bin/sablier
 make run ARGS="version"
 make test
-make docs         # regenerate cli things to docs/reference
+make docs         # regenerate the cli reference in website/
 ```

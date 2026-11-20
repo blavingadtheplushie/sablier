@@ -5,24 +5,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// flags shared by every subcommand
-type globalOptions struct {
-	verbose bool
-}
-
 // exported for tools/gendocs
 func NewRootCmd() *cobra.Command {
-	opts := &globalOptions{}
-
 	root := &cobra.Command{
-		Use:           "sablier",
-		Short:         "sablier - TODO: one-line description",
-		Long:          "sablier - TODO: longer description shown in `sablier --help`.",
+		Use:   "sablier",
+		Short: "track the time you spend coding with ai agents",
+		Long: `sablier runs your ai coding agent (claude code, opencode, codex) and counts
+the time you actually spend working with it.`,
 		SilenceUsage:  true,
 		SilenceErrors: false,
 	}
-
-	root.PersistentFlags().BoolVarP(&opts.verbose, "verbose", "v", false, "enable verbose output")
 
 	root.AddCommand(
 		newVersionCmd(),

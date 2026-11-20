@@ -1,0 +1,116 @@
+/* starlight on top of the tokens: flat, borders not shadows */
+
+:root {
+	--sl-font: var(--font-text);
+	--sl-font-mono: var(--font-mono);
+
+	--sl-color-black: var(--color-canvas);
+	--sl-color-gray-7: var(--color-surface);
+	--sl-color-gray-6: var(--color-surface);
+	--sl-color-gray-5: var(--color-border);
+	--sl-color-gray-4: color-mix(in oklch, var(--color-muted), var(--color-border));
+	--sl-color-gray-3: var(--color-muted);
+	--sl-color-gray-2: color-mix(in oklch, var(--color-ink), var(--color-muted));
+	--sl-color-gray-1: var(--color-ink);
+	--sl-color-white: var(--color-ink);
+
+	--sl-color-accent-low: color-mix(in oklch, var(--color-canvas), var(--color-accent) 14%);
+	--sl-color-accent: var(--color-accent);
+	--sl-color-accent-high: var(--color-accent);
+	--sl-color-text-accent: var(--color-accent);
+
+	--sl-color-bg-nav: var(--color-canvas);
+	--sl-color-bg-sidebar: var(--color-canvas);
+	--sl-color-hairline: var(--color-border);
+	--sl-color-hairline-light: var(--color-border);
+	--sl-color-hairline-shade: var(--color-border);
+
+	--sl-shadow-sm: none;
+	--sl-shadow-md: none;
+	--sl-shadow-lg: none;
+
+	--sl-content-width: 46rem;
+}
+
+.sl-markdown-content :is(h1, h2, h3, h4, h5),
+h1#_top,
+.site-title {
+	font-family: var(--font-heading);
+	font-weight: 600;
+	letter-spacing: -0.015em;
+	color: var(--color-ink);
+}
+.site-title {
+	font-size: 1.3rem;
+}
+
+.sl-markdown-content a:not(:where(.not-content *)) {
+	color: var(--color-accent);
+	text-underline-offset: 0.2em;
+}
+
+.sl-markdown-content :not(pre) > code {
+	background: var(--color-surface);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-small);
+	padding: 0.05em 0.3em;
+}
+
+/* current page, same as the selected mail row */
+nav.sidebar a[aria-current="page"],
+nav.sidebar a[aria-current="page"]:hover,
+nav.sidebar a[aria-current="page"]:focus {
+	background: color-mix(in oklch, var(--color-surface), var(--color-accent) 12%);
+	box-shadow: inset 4px 0 0 var(--color-accent);
+	color: var(--color-ink);
+	border-radius: 0;
+}
+
+/* asides work like the webmail's alerts */
+.starlight-aside {
+	--intent: var(--color-info);
+	--sl-color-asides-text-accent: var(--intent);
+	--sl-color-asides-border: var(--intent);
+	background: color-mix(in oklab, var(--intent) 10%, var(--color-surface));
+	border: 1px solid color-mix(in oklab, var(--intent) 35%, var(--color-surface));
+	border-radius: var(--radius-small);
+}
+.starlight-aside--tip {
+	--intent: var(--color-accent);
+}
+.starlight-aside--caution {
+	--intent: var(--color-warning);
+}
+.starlight-aside--danger {
+	--intent: var(--color-danger);
+}
+
+.sl-markdown-content tr:nth-child(2n) {
+	background: transparent;
+}
+.sl-markdown-content th {
+	border-bottom: 1px solid var(--color-muted);
+}
+
+/* step numbers */
+.sl-steps > li::before {
+	background: var(--color-surface);
+	border: 1px solid var(--color-border);
+	color: var(--color-ink);
+	box-shadow: none;
+}
+.sl-steps > li::after {
+	background: var(--color-border);
+}
+
+/* search box */
+site-search button[data-open-modal] {
+	background: var(--color-surface);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius);
+}
+
+/* the divider was for the theme switcher, which is gone */
+.social-icons::after {
+	display: none;
+}

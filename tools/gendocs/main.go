@@ -1,6 +1,4 @@
-// gendocs writes one md page per command
-//
-//	go run ./tools/gendocs -o docs/reference
+// go run ./tools/gendocs -o website/src/content/docs/docs/reference/cli
 package main
 
 import (
@@ -8,13 +6,15 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/espcaa/sablier/internal/cli"
 	"github.com/spf13/cobra/doc"
 )
 
 func main() {
-	out := flag.String("o", "docs/reference", "output directory")
+	out := flag.String("o", "website/src/content/docs/docs/reference/cli", "output directory")
 	flag.Parse()
 
 	if err := os.MkdirAll(*out, 0o755); err != nil {
@@ -24,7 +24,12 @@ func main() {
 	root := cli.NewRootCmd()
 	root.DisableAutoGenTag = true // keeps output stable between runs
 
-	if err := doc.GenMarkdownTree(root, *out); err != nil {
+	front := func(file string) string {
+		name := strings.ReplaceAll(strings.TrimSuffix(filepath.Base(file), ".md"), "_", " ")
+		return "---\ntitle: " + name + "\n---\n\n"
+	}
+	link := func(name string) string { return "../" + strings.TrimSuffix(name, ".md") + "/" }
+	if err := doc.GenMarkdownTreeCustom(root, *out, front, link); err != nil {
 		log.Fatal(err)
 	}
 	fmt.Printf("wrote docs to %s\n", *out)
