@@ -15,6 +15,7 @@ import (
 
 	"github.com/espcaa/sablier/internal/event"
 	"github.com/espcaa/sablier/internal/store/sqlc"
+	"github.com/google/uuid"
 	"modernc.org/sqlite"
 	sqlite3 "modernc.org/sqlite/lib"
 )
@@ -130,14 +131,24 @@ func (s *Store) Salt(ctx context.Context) ([]byte, error) {
 	if _, err := rand.Read(b); err != nil {
 		return nil, err
 	}
-	if err := s.q.SetMetaIfMissing(ctx, sqlc.SetMetaIfMissingParams{Key: "salt", Value: hex.EncodeToString(b)}); err != nil {
-		return nil, err
-	}
-	v, err := s.q.GetMeta(ctx, "salt")
+	v, err := s.meta(ctx, "salt", hex.EncodeToString(b))
 	if err != nil {
 		return nil, err
 	}
 	return hex.DecodeString(v)
+}
+
+// random uuid naming this machine on the server so that seq numbers are separated per machine
+func (s *Store) InstallID(ctx context.Context) (string, error) {
+	return s.meta(ctx, "install_id", uuid.NewString())
+}
+
+// value for key, set to initial on first use
+func (s *Store) meta(ctx context.Context, key, initial string) (string, error) {
+	if err := s.q.SetMetaIfMissing(ctx, sqlc.SetMetaIfMissingParams{Key: key, Value: initial}); err != nil {
+		return "", err
+	}
+	return s.q.GetMeta(ctx, key)
 }
 
 func (s *Store) Between(ctx context.Context, from, to time.Time) ([]event.Event, error) {

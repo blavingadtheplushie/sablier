@@ -14,25 +14,27 @@ import (
 	"github.com/espcaa/sablier/internal/server/views"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type pinger interface {
+type database interface {
 	Ping(ctx context.Context) error
+	Begin(ctx context.Context) (pgx.Tx, error)
 }
 
 type Server struct {
 	cfg  Config
-	pool pinger
+	db   database
 	q    *sqlc.Queries
 	auth *hcauth.Client
 }
 
-func New(cfg Config, pool pinger, q *sqlc.Queries, auth *hcauth.Client) http.Handler {
-	s := &Server{cfg: cfg, pool: pool, q: q, auth: auth}
+func New(cfg Config, db database, q *sqlc.Queries, auth *hcauth.Client) http.Handler {
+	s := &Server{cfg: cfg, db: db, q: q, auth: auth}
 
 	r := chi.NewRouter()
-	r.Use(middleware.RequestID, middleware.RealIP, middleware.Logger, middleware.Recoverer)
+	r.Use(middleware.RequestID, middleware.Logger, middleware.Recoverer)
 
 	r.Get("/health", s.health)
 	r.Get("/", s.home)
@@ -43,6 +45,7 @@ func New(cfg Config, pool pinger, q *sqlc.Queries, auth *hcauth.Client) http.Han
 	r.Route("/v1", func(r chi.Router) {
 		r.Use(s.requireKey)
 		r.Get("/me", s.me)
+		r.Post("/events", s.ingest)
 	})
 	return r
 }
@@ -50,7 +53,7 @@ func New(cfg Config, pool pinger, q *sqlc.Queries, auth *hcauth.Client) http.Han
 func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
-	if err := s.pool.Ping(ctx); err != nil {
+	if err := s.db.Ping(ctx); err != nil {
 		http.Error(w, "db unreachable", http.StatusServiceUnavailable)
 		return
 	}

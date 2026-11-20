@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -32,6 +33,16 @@ func (c *Client) Me(ctx context.Context) (User, error) {
 	var u User
 	err := c.do(ctx, "GET", "/v1/me", nil, &u)
 	return u, err
+}
+
+func (c *Client) Upload(ctx context.Context, b Batch) (Result, error) {
+	body, err := json.Marshal(b)
+	if err != nil {
+		return Result{}, err
+	}
+	var r Result
+	err = c.do(ctx, "POST", "/v1/events", bytes.NewReader(body), &r)
+	return r, err
 }
 
 func (c *Client) do(ctx context.Context, method, path string, body io.Reader, out any) error {

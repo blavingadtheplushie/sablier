@@ -203,3 +203,15 @@ func TestWAL(t *testing.T) {
 		t.Fatalf("journal_mode = %q, %v", mode, err)
 	}
 }
+
+func TestInstallID(t *testing.T) {
+	s, ctx := open(t), context.Background()
+	a, err := s.InstallID(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := s.InstallID(ctx)
+	if a != b || len(a) != 36 || a[14] != '4' {
+		t.Fatalf("got %q then %q", a, b)
+	}
+}

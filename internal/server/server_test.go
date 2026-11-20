@@ -6,11 +6,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/jackc/pgx/v5"
 )
 
 type fakeDB struct{ err error }
 
-func (f fakeDB) Ping(context.Context) error { return f.err }
+func (f fakeDB) Ping(context.Context) error            { return f.err }
+func (f fakeDB) Begin(context.Context) (pgx.Tx, error) { return nil, f.err }
 
 func TestHealth(t *testing.T) {
 	cases := map[string]struct {
