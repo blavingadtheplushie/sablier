@@ -44,6 +44,11 @@ func New(cfg Config, db database, q *sqlc.Queries, auth *hcauth.Client) http.Han
 		r.Get("/auth/callback", s.callback)
 		r.Post("/auth/logout", s.logout)
 
+		r.Get("/cli/authorize", s.cliAuthorize)
+		r.Post("/cli/authorize", s.cliDecide)
+		r.Post("/cli/token", s.cliToken)
+		r.Get("/cli/done", s.cliDone)
+
 		r.Route("/v1", func(r chi.Router) {
 			r.Use(s.requireKey)
 			r.Get("/me", s.me)

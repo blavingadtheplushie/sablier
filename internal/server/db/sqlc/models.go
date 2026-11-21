@@ -8,6 +8,13 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type CliCode struct {
+	CodeHash  []byte
+	UserID    string
+	Challenge string
+	ExpiresAt pgtype.Timestamptz
+}
+
 type Event struct {
 	InstallID  pgtype.UUID
 	Seq        int64

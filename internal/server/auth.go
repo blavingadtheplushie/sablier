@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -18,17 +19,22 @@ import (
 const (
 	sessionCookie = "sablier_session"
 	stateCookie   = "sablier_oauth_state"
+	nextCookie    = "sablier_next" // where to land after sign in, e.g. the cli consent page
 	sessionTTL    = 30 * 24 * time.Hour
 )
 
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
+	next := localPath(r.URL.Query().Get("next"))
 	if s.currentUser(r) != nil {
-		http.Redirect(w, r, "/app", http.StatusFound)
+		http.Redirect(w, r, next, http.StatusFound)
 		return
 	}
 	if s.auth == nil {
 		http.Error(w, "sign in is not configured", http.StatusServiceUnavailable)
 		return
+	}
+	if next != "/app" {
+		http.SetCookie(w, s.cookie(nextCookie, url.QueryEscape(next), "/auth", 10*time.Minute))
 	}
 	// checked on callback, so a login can't be started by another site
 	state := randomToken()
@@ -93,7 +99,22 @@ func (s *Server) callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.SetCookie(w, s.cookie(sessionCookie, session, "/", sessionTTL))
-	http.Redirect(w, r, "/app", http.StatusFound)
+	next := "/app"
+	if c, err := r.Cookie(nextCookie); err == nil {
+		if v, err := url.QueryUnescape(c.Value); err == nil {
+			next = localPath(v)
+		}
+		http.SetCookie(w, s.cookie(nextCookie, "", "/auth", -1))
+	}
+	http.Redirect(w, r, next, http.StatusFound)
+}
+
+// only paths on this site, so ?next= can't send people elsewhere
+func localPath(p string) string {
+	if !strings.HasPrefix(p, "/") || strings.HasPrefix(p, "//") || strings.HasPrefix(p, "/\\") {
+		return "/app"
+	}
+	return p
 }
 
 func (s *Server) logout(w http.ResponseWriter, r *http.Request) {

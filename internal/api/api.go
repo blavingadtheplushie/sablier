@@ -37,6 +37,25 @@ func (c *Client) Me(ctx context.Context) (User, error) {
 	return u, err
 }
 
+type CLIToken struct {
+	APIKey string `json:"api_key"`
+	User
+}
+
+// trades a browser login code for the api key, no key needed
+func (c *Client) CLIToken(ctx context.Context, code, verifier string) (CLIToken, error) {
+	body, err := json.Marshal(map[string]string{"code": code, "code_verifier": verifier})
+	if err != nil {
+		return CLIToken{}, err
+	}
+	var t CLIToken
+	err = c.do(ctx, "POST", "/cli/token", bytes.NewReader(body), &t)
+	if err == nil && t.APIKey == "" {
+		err = errors.New("server: no api key in the answer")
+	}
+	return t, err
+}
+
 func (c *Client) Upload(ctx context.Context, b Batch) (Result, error) {
 	body, err := json.Marshal(b)
 	if err != nil {
@@ -52,7 +71,9 @@ func (c *Client) do(ctx context.Context, method, path string, body io.Reader, ou
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Authorization", "Bearer "+c.Key)
+	if c.Key != "" {
+		req.Header.Set("Authorization", "Bearer "+c.Key)
+	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", version.UserAgent())
 	if body != nil {

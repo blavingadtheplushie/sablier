@@ -31,6 +31,46 @@ func (q *Queries) ClaimInstall(ctx context.Context, arg ClaimInstallParams) (pgt
 	return id, err
 }
 
+const consumeCLICode = `-- name: ConsumeCLICode :one
+DELETE FROM cli_codes WHERE code_hash = $1
+RETURNING user_id, challenge, expires_at
+`
+
+type ConsumeCLICodeRow struct {
+	UserID    string
+	Challenge string
+	ExpiresAt pgtype.Timestamptz
+}
+
+// single use: the code is gone after the first try, even a wrong one
+func (q *Queries) ConsumeCLICode(ctx context.Context, codeHash []byte) (ConsumeCLICodeRow, error) {
+	row := q.db.QueryRow(ctx, consumeCLICode, codeHash)
+	var i ConsumeCLICodeRow
+	err := row.Scan(&i.UserID, &i.Challenge, &i.ExpiresAt)
+	return i, err
+}
+
+const createCLICode = `-- name: CreateCLICode :exec
+INSERT INTO cli_codes (code_hash, user_id, challenge, expires_at) VALUES ($1, $2, $3, $4)
+`
+
+type CreateCLICodeParams struct {
+	CodeHash  []byte
+	UserID    string
+	Challenge string
+	ExpiresAt pgtype.Timestamptz
+}
+
+func (q *Queries) CreateCLICode(ctx context.Context, arg CreateCLICodeParams) error {
+	_, err := q.db.Exec(ctx, createCLICode,
+		arg.CodeHash,
+		arg.UserID,
+		arg.Challenge,
+		arg.ExpiresAt,
+	)
+	return err
+}
+
 const createSession = `-- name: CreateSession :exec
 INSERT INTO sessions (token_hash, user_id, expires_at) VALUES ($1, $2, $3)
 `
@@ -160,6 +200,23 @@ SELECT id, slack_id, name, api_key, created_at FROM users WHERE api_key = $1
 
 func (q *Queries) UserByAPIKey(ctx context.Context, apiKey string) (User, error) {
 	row := q.db.QueryRow(ctx, userByAPIKey, apiKey)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.SlackID,
+		&i.Name,
+		&i.ApiKey,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const userByID = `-- name: UserByID :one
+SELECT id, slack_id, name, api_key, created_at FROM users WHERE id = $1
+`
+
+func (q *Queries) UserByID(ctx context.Context, id string) (User, error) {
+	row := q.db.QueryRow(ctx, userByID, id)
 	var i User
 	err := row.Scan(
 		&i.ID,

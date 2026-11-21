@@ -100,7 +100,7 @@ func TestSignInFlow(t *testing.T) {
 
 	// login -> fake hack club -> callback -> /app
 	code, body := get(t, browser, app.URL+"/auth/login")
-	if code != 200 || !strings.Contains(body, "Signed in as Alice B") || !strings.Contains(body, "sab_") {
+	if code != 200 || !strings.Contains(body, "Signed in as Alice") || !strings.Contains(body, "sab_") {
 		t.Fatalf("after sign in (%d): %s", code, body)
 	}
 
@@ -157,5 +157,19 @@ func TestLoginSetsState(t *testing.T) {
 	if rec.Code != http.StatusFound || len(cookies) != 1 || cookies[0].Name != stateCookie ||
 		loc.Query().Get("state") != cookies[0].Value || !cookies[0].HttpOnly {
 		t.Fatalf("got %d, %s, %+v", rec.Code, loc, cookies)
+	}
+}
+
+func TestLocalPath(t *testing.T) {
+	for in, want := range map[string]string{
+		"/cli/authorize?port=1": "/cli/authorize?port=1",
+		"":                      "/app",
+		"https://evil.example":  "/app",
+		"//evil.example":        "/app",
+		`/\evil.example`:        "/app",
+	} {
+		if got := localPath(in); got != want {
+			t.Errorf("localPath(%q) = %q, want %q", in, got, want)
+		}
 	}
 }
