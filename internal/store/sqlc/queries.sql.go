@@ -139,6 +139,15 @@ func (q *Queries) LastEventFrom(ctx context.Context, arg LastEventFromParams) (i
 	return column_1, err
 }
 
+const markAllPending = `-- name: MarkAllPending :exec
+UPDATE events SET uploaded_at = NULL
+`
+
+func (q *Queries) MarkAllPending(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, markAllPending)
+	return err
+}
+
 const markUploaded = `-- name: MarkUploaded :exec
 UPDATE events
 SET uploaded_at = ?1

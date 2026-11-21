@@ -80,6 +80,13 @@ func TestSync(t *testing.T) {
 	if strings.TrimSpace(out.String()) != "nothing to sync" {
 		t.Fatalf("second sync: %q", out.String())
 	}
+
+	s.MarkAllPending(ctx)
+	out.Reset()
+	syncEvents(ctx, s, client, &out)
+	if !strings.Contains(out.String(), "synced 503 events") {
+		t.Fatalf("after marking all pending: %q", out.String())
+	}
 }
 
 func TestSyncBadKey(t *testing.T) {

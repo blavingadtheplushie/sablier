@@ -17,6 +17,9 @@ WHERE uploaded_at IS NULL
 ORDER BY seq
 LIMIT ?;
 
+-- name: MarkAllPending :exec
+UPDATE events SET uploaded_at = NULL;
+
 -- name: MarkUploaded :exec
 UPDATE events
 SET uploaded_at = sqlc.arg(uploaded_at)

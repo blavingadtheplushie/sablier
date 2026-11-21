@@ -18,7 +18,8 @@ import (
 )
 
 func newSyncCmd() *cobra.Command {
-	return &cobra.Command{
+	var all bool
+	cmd := &cobra.Command{
 		Use:   "sync",
 		Short: "upload tracked events to the server",
 		Args:  cobra.NoArgs,
@@ -39,9 +40,16 @@ func newSyncCmd() *cobra.Command {
 				return err
 			}
 			defer s.Close()
+			if all {
+				if err := s.MarkAllPending(cmd.Context()); err != nil {
+					return err
+				}
+			}
 			return syncEvents(cmd.Context(), s, api.New(c.APIURL, c.APIKey), cmd.OutOrStdout())
 		},
 	}
+	cmd.Flags().BoolVar(&all, "all", false, "send every event on this machine again, not only new ones (the server skips what it has)")
+	return cmd
 }
 
 func syncEvents(ctx context.Context, s *store.Store, client *api.Client, out io.Writer) error {
@@ -71,6 +79,7 @@ func upload(ctx context.Context, s *store.Store, client *api.Client) (api.Result
 	if err != nil {
 		return total, err
 	}
+
 	for {
 		pending, err := s.Pending(ctx, api.MaxBatch)
 		if err != nil {

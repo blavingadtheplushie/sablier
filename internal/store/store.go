@@ -207,6 +207,11 @@ func (s *Store) Pending(ctx context.Context, limit int64) ([]event.Event, error)
 	return fromRows(rows), nil
 }
 
+// everything gets sent again, e.g. to a new server
+func (s *Store) MarkAllPending(ctx context.Context) error {
+	return s.q.MarkAllPending(ctx)
+}
+
 // marks every event up to seq as sent
 func (s *Store) MarkUploaded(ctx context.Context, seq int64, at time.Time) error {
 	return s.q.MarkUploaded(ctx, sqlc.MarkUploadedParams{
