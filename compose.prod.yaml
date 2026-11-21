@@ -27,7 +27,7 @@ services:
       HACKCLUB_CLIENT_ID: ${HACKCLUB_CLIENT_ID:?set HACKCLUB_CLIENT_ID in .env}
       HACKCLUB_CLIENT_SECRET: ${HACKCLUB_CLIENT_SECRET:?set HACKCLUB_CLIENT_SECRET in .env}
     ports:
-      - "127.0.0.1:${SABLIER_PORT:-8080}:8080"
+      - "${SABLIER_HOST:-127.0.0.1}:${SABLIER_PORT:-8080}:8080"
 
 volumes:
   postgres_data:
