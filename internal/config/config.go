@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-const DefaultAPIURL = "http://localhost:8080"
+const DefaultAPIURL = "https://sablier.hackclub.cc"
 
 type Config struct {
 	APIKey string

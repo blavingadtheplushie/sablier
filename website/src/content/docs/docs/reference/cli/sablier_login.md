@@ -13,7 +13,7 @@ sablier login [flags]
 ### Options
 
 ```
-      --api-url string   server url (default: from the config, else http://localhost:8080)
+      --api-url string   server url (default: from the config, else https://sablier.hackclub.cc)
   -h, --help             help for login
 ```
 

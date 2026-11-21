@@ -1,4 +1,4 @@
-# installs sablier on windows: irm https://<site>/install.ps1 | iex
+# installs sablier on windows: irm https://sablier.hackclub.cc/install.ps1 | iex
 #
 #   $env:SABLIER_VERSION      a release tag like v0.1.0, default the latest
 #   $env:SABLIER_INSTALL_DIR  where to put it, default %LOCALAPPDATA%\Programs\sablier

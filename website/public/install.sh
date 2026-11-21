@@ -1,5 +1,5 @@
 #!/bin/sh
-# installs sablier: curl -fsSL https://<site>/install.sh | sh
+# installs sablier: curl -fsSL https://sablier.hackclub.cc/install.sh | sh
 #
 #   SABLIER_VERSION      a release tag like v0.1.0, default the latest
 #   SABLIER_INSTALL_DIR  where to put it, default ~/.local/bin
