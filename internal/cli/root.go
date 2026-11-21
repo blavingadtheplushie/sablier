@@ -2,6 +2,9 @@
 package cli
 
 import (
+	"os"
+
+	"github.com/espcaa/sablier/internal/update"
 	"github.com/spf13/cobra"
 )
 
@@ -26,11 +29,15 @@ the time you actually spend working with it.`,
 		newLoginCmd(),
 		newSyncCmd(),
 		newStatusCmd(),
+		newUpdateCmd(),
 	)
 
 	return root
 }
 
 func Execute() error {
+	if exe, err := os.Executable(); err == nil {
+		update.Cleanup(exe)
+	}
 	return NewRootCmd().Execute()
 }

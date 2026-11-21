@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/espcaa/sablier/internal/version"
 )
 
 var ErrUnauthorized = errors.New("invalid api key")
@@ -52,6 +54,7 @@ func (c *Client) do(ctx context.Context, method, path string, body io.Reader, ou
 	}
 	req.Header.Set("Authorization", "Bearer "+c.Key)
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", version.UserAgent())
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
