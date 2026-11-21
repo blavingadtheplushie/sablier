@@ -1,5 +1,4 @@
 # production: docker compose -f compose.prod.yaml up -d --build
-# reads DB_PASSWORD, SABLIER_BASE_URL and HACKCLUB_CLIENT_* from .env
 services:
   postgres:
     image: postgres:16-alpine
@@ -28,7 +27,7 @@ services:
       HACKCLUB_CLIENT_ID: ${HACKCLUB_CLIENT_ID:?set HACKCLUB_CLIENT_ID in .env}
       HACKCLUB_CLIENT_SECRET: ${HACKCLUB_CLIENT_SECRET:?set HACKCLUB_CLIENT_SECRET in .env}
     ports:
-      - "127.0.0.1:8080:8080" # for a reverse proxy on the same machine
+      - "127.0.0.1:${SABLIER_PORT:-8080}:8080"
 
 volumes:
   postgres_data:
