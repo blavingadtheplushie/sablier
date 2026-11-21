@@ -8,13 +8,24 @@ LDFLAGS := -s -w \
 	-X $(PKG)/internal/version.Commit=$(COMMIT) \
 	-X $(PKG)/internal/version.Date=$(DATE)
 
-.PHONY: all build run install test test-server lint docs generate tidy clean server db dev website
+.PHONY: all build run install test test-server lint docs generate tidy clean server db dev website release
 
 all: build
 
 build:
 	go build -ldflags "$(LDFLAGS)" -o bin/$(BINARY) ./cmd/$(BINARY)
 	go build -ldflags "$(LDFLAGS)" -o bin/$(BINARY)-server ./cmd/$(BINARY)-server
+
+# every platform into dist/, named like install.sh and sablier update expect
+PLATFORMS := darwin/arm64 darwin/amd64 linux/amd64 linux/arm64 windows/amd64
+release:
+	rm -rf dist && mkdir -p dist
+	for p in $(PLATFORMS); do \
+		os=$${p%/*}; arch=$${p#*/}; ext=; [ $$os = windows ] && ext=.exe; \
+		CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch go build -trimpath -ldflags "$(LDFLAGS)" \
+			-o dist/$(BINARY)_$${os}_$${arch}$$ext ./cmd/$(BINARY) || exit 1; \
+	done
+	cd dist && shasum -a 256 $(BINARY)_* > checksums.txt
 
 # local postgres on 127.0.0.1:5433
 db:
