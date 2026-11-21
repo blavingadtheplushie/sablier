@@ -25,6 +25,10 @@ WHERE seq <= sqlc.arg(up_to_seq) AND uploaded_at IS NULL;
 -- name: GetMeta :one
 SELECT value FROM meta WHERE key = ?;
 
+-- name: SetMeta :exec
+INSERT INTO meta (key, value) VALUES (?, ?)
+ON CONFLICT (key) DO UPDATE SET value = excluded.value;
+
 -- name: SetMetaIfMissing :exec
 INSERT INTO meta (key, value) VALUES (?, ?)
 ON CONFLICT (key) DO NOTHING;

@@ -143,6 +143,19 @@ func (s *Store) InstallID(ctx context.Context) (string, error) {
 	return s.meta(ctx, "install_id", uuid.NewString())
 }
 
+// value for key, "" if never set
+func (s *Store) Meta(ctx context.Context, key string) (string, error) {
+	v, err := s.q.GetMeta(ctx, key)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	return v, err
+}
+
+func (s *Store) SetMeta(ctx context.Context, key, value string) error {
+	return s.q.SetMeta(ctx, sqlc.SetMetaParams{Key: key, Value: value})
+}
+
 // value for key, set to initial on first use
 func (s *Store) meta(ctx context.Context, key, initial string) (string, error) {
 	if err := s.q.SetMetaIfMissing(ctx, sqlc.SetMetaIfMissingParams{Key: key, Value: initial}); err != nil {

@@ -211,6 +211,21 @@ func (q *Queries) PutSessionState(ctx context.Context, arg PutSessionStateParams
 	return err
 }
 
+const setMeta = `-- name: SetMeta :exec
+INSERT INTO meta (key, value) VALUES (?, ?)
+ON CONFLICT (key) DO UPDATE SET value = excluded.value
+`
+
+type SetMetaParams struct {
+	Key   string
+	Value string
+}
+
+func (q *Queries) SetMeta(ctx context.Context, arg SetMetaParams) error {
+	_, err := q.db.ExecContext(ctx, setMeta, arg.Key, arg.Value)
+	return err
+}
+
 const setMetaIfMissing = `-- name: SetMetaIfMissing :exec
 INSERT INTO meta (key, value) VALUES (?, ?)
 ON CONFLICT (key) DO NOTHING

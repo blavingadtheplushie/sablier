@@ -31,6 +31,7 @@ func runHarness(cmd *cobra.Command, h harnessRun) (int, error) {
 	}
 	rec := newRecorder(context.Background(), h.harness, id, cmd.ErrOrStderr())
 	stopSync := startAutoSync(rec.s, syncEvery, cmd.ErrOrStderr())
+	updateNotice := startUpdateCheck(rec.s, time.Now())
 	stopWatch := func() {}
 	if h.watch != nil && rec.s != nil {
 		stopWatch = h.watch(rec)
@@ -41,6 +42,9 @@ func runHarness(cmd *cobra.Command, h harnessRun) (int, error) {
 	stopWatch()
 	stopSync() // before close, it uses the store
 	rec.checkAdapter(time.Since(start))
+	if n := updateNotice(); n != "" {
+		fmt.Fprintln(cmd.ErrOrStderr(), n)
+	}
 	rec.close()
 	return code, err
 }
