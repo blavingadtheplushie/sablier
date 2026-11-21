@@ -1,0 +1,34 @@
+# production: docker compose -f compose.prod.yaml up -d --build
+# reads DB_PASSWORD, SABLIER_BASE_URL and HACKCLUB_CLIENT_* from .env
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sablier
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      POSTGRES_DB: sablier
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sablier -d sablier"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  sablier:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://sablier:${DB_PASSWORD}@postgres:5432/sablier?sslmode=disable
+      SABLIER_BASE_URL: ${SABLIER_BASE_URL:-https://sablier.hackclub.cc}
+      HACKCLUB_CLIENT_ID: ${HACKCLUB_CLIENT_ID:?set HACKCLUB_CLIENT_ID in .env}
+      HACKCLUB_CLIENT_SECRET: ${HACKCLUB_CLIENT_SECRET:?set HACKCLUB_CLIENT_SECRET in .env}
+    ports:
+      - "127.0.0.1:8080:8080" # for a reverse proxy on the same machine
+
+volumes:
+  postgres_data:

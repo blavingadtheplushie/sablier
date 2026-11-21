@@ -1,0 +1,9 @@
+.git
+.env
+bin
+dist
+tmp
+docs/design
+website/node_modules
+website/dist
+website/.astro
